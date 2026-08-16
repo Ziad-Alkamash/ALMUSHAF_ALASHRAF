@@ -6,6 +6,47 @@ const QuranAPI = (() => {
   const QCOM = 'https://api.quran.com/api/v4';
   const CACHE_PREFIX = 'almus-hraf-cache:';
 
+  // فهرس دائم (سورة → رقم الصفحة) يُبنى تلقائيًا محليًا كلما عُرضت صفحة
+  // (سواء من الشبكة أو من الكاش)، ويُستخدم أيضًا أثناء "تحميل كل الصفحات".
+  // بهذا يعمل الانتقال المباشر لأي سورة فورًا وبدون إنترنت بمجرد أن تكون
+  // صفحتها قد مرّت مرة واحدة على الجهاز، دون أي اعتماد على نقطة اتصال أخرى
+  // قد لا تكون مخزَّنة (مثل نقطة /surah/{n} التي لا يخزّنها زر التحميل الشامل).
+  const SURAH_PAGE_MAP_KEY = CACHE_PREFIX + 'surahPageMap';
+
+  function loadSurahPageMap() {
+    try {
+      const raw = localStorage.getItem(SURAH_PAGE_MAP_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveSurahStartPage(surahNumber, pageNumber) {
+    try {
+      const map = loadSurahPageMap();
+      if (map[surahNumber] !== pageNumber) {
+        map[surahNumber] = pageNumber;
+        localStorage.setItem(SURAH_PAGE_MAP_KEY, JSON.stringify(map));
+      }
+    } catch (e) { /* عند امتلاء الذاكرة */ }
+  }
+
+  // يفحص بيانات صفحة خام (كما ترجع من نقطة page/{n}) ويسجّل بداية أي سورة
+  // تبدأ في هذه الصفحة. تُستخدم من getPage تلقائيًا، ومن أداة التحميل الشامل
+  // في app.js حتى يكتمل الفهرس بمجرد تحميل كل الصفحات ولو مرة واحدة.
+  function recordSurahStartPagesFromRawPage(rawData) {
+    try {
+      const ayahs = rawData && rawData.data && rawData.data.ayahs;
+      if (!ayahs) return;
+      ayahs.forEach((a) => {
+        if (a.numberInSurah === 1) {
+          saveSurahStartPage(a.surah.number, a.page);
+        }
+      });
+    } catch (e) { /* تجاهل أي بيانات غير متوقعة */ }
+  }
+
   // دالة جلب مع التخزين المحلي (Cache) لتسريع التحميل وتوفير الترافيك
   async function cachedFetchJSON(url, ttlHours = 24 * 30) {
     const key = CACHE_PREFIX + url;
@@ -42,6 +83,10 @@ const QuranAPI = (() => {
     const rawAyahs = data.data.ayahs;
 
     if (!rawAyahs || rawAyahs.length === 0) throw new Error('لا توجد بيانات لهذه الصفحة');
+
+    // كل مرة تُعرض فيها صفحة (من الشبكة أو من الكاش) نُحدّث فهرس بدايات
+    // السور محليًا، حتى يعمل الانتقال المباشر لأي سورة بدون إنترنت لاحقًا
+    recordSurahStartPagesFromRawPage(data);
 
     // استخراج معلومات الهيدر العلوي للصفحة (اسم السورة الرئيسية، الجزء، الصفحة)
     const primarySurah = rawAyahs[0].surah;
@@ -101,10 +146,18 @@ const QuranAPI = (() => {
   }
 
   // 3️⃣ معرفة رقم الصفحة التي تبدأ عندها سورة معينة
+  // أولوية القراءة من الفهرس المحلي الدائم (يعمل فورًا وبدون إنترنت إن كانت
+  // صفحة هذه السورة قد مرّت على الجهاز من قبل، سواء بالتصفح أو بالتحميل
+  // الشامل)، فإن لم توجد نلجأ للشبكة كحل احتياطي ونضيف النتيجة للفهرس.
   async function getSurahStartPage(surahNumber) {
+    const map = loadSurahPageMap();
+    if (map[surahNumber]) return map[surahNumber];
+
     const data = await cachedFetchJSON(`${BASE}/surah/${surahNumber}/quran-uthmani`);
     if (data.data && data.data.ayahs && data.data.ayahs.length > 0) {
-      return data.data.ayahs[0].page;
+      const page = data.data.ayahs[0].page;
+      saveSurahStartPage(surahNumber, page);
+      return page;
     }
     return 1;
   }
@@ -202,6 +255,7 @@ const QuranAPI = (() => {
     searchQuran,
     pageURL,
     RECITERS,
-    getSurahAudioURL
+    getSurahAudioURL,
+    recordSurahStartPagesFromRawPage
   };
 })();

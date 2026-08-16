@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mushaf-ashraf-v5';
+const CACHE_NAME = 'mushaf-ashraf-v7';
 
 // طبقة تخزين منفصلة لبيانات القرآن المجلوبة من الإنترنت (صفحات المصحف، التفسير، الصوتيات، معاني الكلمات)
 // تبقى هذه البيانات محفوظة دائمًا حتى بعد تحديث التطبيق، ولا تُمسح إلا يدويًا من إعدادات المتصفح
@@ -18,6 +18,7 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  './notify.mp3',
   './widget-duas.html',
   './widget-prayer.html',
   './manifest-widget-duas.json',
@@ -109,11 +110,21 @@ self.addEventListener('push', (event) => {
     lang: 'ar',
     tag: payload.tag || undefined,
     renotify: !!payload.tag,
+    silent: false,
     data: { url: payload.url || './index.html' },
     vibrate: [80, 40, 80]
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(title, options);
+      // نطلب من أي نافذة مفتوحة للتطبيق تشغيل صوت التنبيه، لأن الـ Service
+      // Worker نفسه لا يمكنه تشغيل صوت مباشرة. إن كان التطبيق مغلقًا تمامًا
+      // فسيعتمد على صوت الإشعار الافتراضي في نظام التشغيل (silent: false أعلاه)
+      const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clientList.forEach((c) => c.postMessage({ type: 'play-notification-sound' }));
+    })()
+  );
 });
 
 // الضغط على الإشعار: يفتح التطبيق (أو يركّز على تبويب مفتوح بالفعل بدل فتح نسخة جديدة)

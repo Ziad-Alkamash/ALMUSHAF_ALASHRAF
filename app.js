@@ -203,7 +203,9 @@
           const startPage = await QuranAPI.getSurahStartPage(surahNum);
           loadPage(startPage);
         } catch (e) {
-          showToast('تعذر الانتقال لصفحة السورة');
+          showToast(navigator.onLine
+            ? 'تعذر الانتقال لصفحة السورة'
+            : 'هذه السورة لم تُفتح من قبل على هذا الجهاز؛ افتحها مرة وأنت متصل بالإنترنت، أو استخدم "تحميل كل الصفحات" من الإعدادات ليعمل الانتقال إليها لاحقًا بدون إنترنت');
         }
       });
     });
@@ -481,6 +483,10 @@
   /* ---------------------------------------------------------------- */
   let isFlipAnimating = false;
 
+  // تأثير بسيط وخفيف: انزلاق أفقي مع تلاشٍ خطي بدون أي دوران ثلاثي الأبعاد
+  // أو حسابات ظل معقّدة، فيبقى سلسًا وسريعًا حتى على الأجهزة الأضعف.
+  // الصفحة تكمل الحركة في نفس اتجاه السحب مباشرة (بدون أي ارتداد للخلف
+  // قبل أن تكمل)، والصفحة الجديدة تدخل من الجهة المقابلة فقط.
   function flipToPage(pageNumber, direction) {
     if (isFlipAnimating) return;
     const flipEl = $('#mushaf-page');
@@ -488,40 +494,35 @@
 
     isFlipAnimating = true;
     const pageWidth = flipEl.getBoundingClientRect().width || 320;
-    const exitX = direction === 'next' ? -pageWidth * 1.05 : pageWidth * 1.05;
-    const exitRotate = direction === 'next' ? -9 : 9;
+    // "next" تعني أن السحب كان لليمين (قيمة موجبة)، فتكمل الصفحة الخارجة
+    // نفس اتجاه السحب لليمين بدل الارتداد لليسار
+    const exitX = direction === 'next' ? pageWidth * 0.55 : -pageWidth * 0.55;
 
-    flipEl.style.transformOrigin = direction === 'next' ? 'right center' : 'left center';
-    flipEl.style.transition = 'transform .28s cubic-bezier(.4,0,.2,1), opacity .28s, box-shadow .28s';
-    flipEl.style.transform = `translateX(${exitX}px) rotateY(${exitRotate}deg)`;
-    flipEl.style.opacity = '0.25';
-    flipEl.style.boxShadow = '0 14px 34px var(--shadow)';
+    flipEl.style.transition = 'transform .15s ease-out, opacity .15s ease-out';
+    flipEl.style.transform = `translateX(${exitX}px)`;
+    flipEl.style.opacity = '0';
 
     setTimeout(async () => {
       await loadPage(pageNumber);
 
       // إدخال الصفحة الجديدة من الجهة المقابلة لاتجاه السحب
       flipEl.style.transition = 'none';
-      const enterX = direction === 'next' ? pageWidth * 1.05 : -pageWidth * 1.05;
-      const enterRotate = direction === 'next' ? 9 : -9;
-      flipEl.style.transformOrigin = direction === 'next' ? 'left center' : 'right center';
-      flipEl.style.transform = `translateX(${enterX}px) rotateY(${enterRotate}deg)`;
-      flipEl.style.opacity = '0.25';
+      const enterX = direction === 'next' ? -pageWidth * 0.55 : pageWidth * 0.55;
+      flipEl.style.transform = `translateX(${enterX}px)`;
+      flipEl.style.opacity = '0';
 
       // إجبار إعادة الرسم قبل بدء انتقال الدخول حتى تعمل الحركة
       void flipEl.offsetWidth;
 
-      flipEl.style.transition = 'transform .32s cubic-bezier(.22,.61,.36,1), opacity .32s';
-      flipEl.style.transform = 'translateX(0) rotateY(0)';
+      flipEl.style.transition = 'transform .17s ease-out, opacity .17s ease-out';
+      flipEl.style.transform = 'translateX(0)';
       flipEl.style.opacity = '1';
 
       setTimeout(() => {
         flipEl.style.transition = '';
-        flipEl.style.boxShadow = '';
-        flipEl.style.transformOrigin = '';
         isFlipAnimating = false;
-      }, 340);
-    }, 240);
+      }, 180);
+    }, 150);
   }
 
   function goNextPage() {
@@ -588,13 +589,11 @@
         lastX = e.clientX;
         lastT = now;
 
-        const resistance = 0.6; // مقاومة بسيطة تعطي إحساس ورق حقيقي
+        const resistance = 0.6; // مقاومة بسيطة تعطي إحساس طبيعي للسحب
         const translate = currentX * resistance;
-        const rotate = Math.max(-9, Math.min(9, -(translate / pageWidth) * 11));
-        flipEl.style.transformOrigin = translate < 0 ? 'right center' : 'left center';
-        flipEl.style.transform = `translateX(${translate}px) rotateY(${rotate}deg)`;
-        const shadowSide = translate < 0 ? '-' : '';
-        flipEl.style.boxShadow = `0 14px 34px var(--shadow), ${shadowSide}${Math.min(Math.abs(translate) / 3, 26)}px 0 32px rgba(0,0,0,.22)`;
+        const fade = Math.max(0.55, 1 - Math.abs(translate) / pageWidth);
+        flipEl.style.transform = `translateX(${translate}px)`;
+        flipEl.style.opacity = String(fade);
       }
     }
 
@@ -622,10 +621,10 @@
     }
 
     function snapBack() {
-      flipEl.style.transition = 'transform .26s cubic-bezier(.22,.61,.36,1), box-shadow .26s';
-      flipEl.style.transform = 'translateX(0) rotateY(0)';
-      flipEl.style.boxShadow = '';
-      setTimeout(() => { flipEl.style.transition = ''; flipEl.style.transformOrigin = ''; }, 280);
+      flipEl.style.transition = 'transform .18s ease-out, opacity .18s ease-out';
+      flipEl.style.transform = 'translateX(0)';
+      flipEl.style.opacity = '1';
+      setTimeout(() => { flipEl.style.transition = ''; }, 190);
     }
 
     wrap.addEventListener('pointerdown', onPointerDown);
@@ -1532,11 +1531,14 @@
       if (wrap) wrap.classList.remove('hidden');
 
       const total = 604;
-      const concurrency = 6;
+      // تركيز أقل على التزامن يقلّل من فشل الطلبات بسبب ضغط السيرفر أو
+      // اضطراب الاتصال، وهو السبب الأغلب وراء تعذّر تحميل مئات الصفحات
+      // من أول محاولة
+      const concurrency = 4;
       let completed = 0;
-      let failed = 0;
       const queue = [];
       for (let p = 1; p <= total; p++) queue.push(p);
+      let failedPages = [];
 
       function updateUI() {
         const pct = Math.round((completed / total) * 100);
@@ -1544,16 +1546,36 @@
         if (label) label.textContent = `${toArabicDigits(pct)}٪ — صفحة ${toArabicDigits(completed)} من ٦٠٤`;
       }
 
+      // محاولة تحميل صفحة واحدة، مع إعادة محاولة تلقائية عند الفشل (حتى
+      // لا يضطر المستخدم للضغط على "إعادة التحميل" عدة مرات يدويًا)
+      async function fetchPageOnce(p) {
+        const res = await fetch(QuranAPI.pageURL(p));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json(); // نقرأ الجسم بالكامل لضمان اكتمال تخزينه في الكاش
+        // نبني فهرس بدايات السور في نفس الوقت، فيعمل الانتقال المباشر لأي
+        // سورة بدون إنترنت بمجرد اكتمال هذا التحميل
+        QuranAPI.recordSurahStartPagesFromRawPage(data);
+      }
+
+      async function fetchPageWithRetry(p, retries) {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          try {
+            await fetchPageOnce(p);
+            return true;
+          } catch (e) {
+            if (attempt < retries) {
+              await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+            }
+          }
+        }
+        return false;
+      }
+
       async function worker() {
         while (queue.length && !offlineDownloadCancelled) {
           const p = queue.shift();
-          try {
-            const res = await fetch(QuranAPI.pageURL(p));
-            await res.arrayBuffer(); // نقرأ الجسم بالكامل لضمان اكتمال تخزينه في الكاش
-            if (!res.ok) failed++;
-          } catch (e) {
-            failed++;
-          }
+          const ok = await fetchPageWithRetry(p, 2);
+          if (!ok) failedPages.push(p);
           completed++;
           updateUI();
         }
@@ -1561,6 +1583,19 @@
 
       updateUI();
       await Promise.all(Array.from({ length: concurrency }, worker));
+
+      // شوط إعادة محاولة تلقائي أخير للصفحات التي تعذّر تحميلها، بشكل متسلسل
+      // وهادئ، بدل مطالبة المستخدم بإعادة الضغط على الزر من جديد
+      if (!offlineDownloadCancelled && failedPages.length) {
+        const retryList = failedPages;
+        failedPages = [];
+        for (const p of retryList) {
+          if (offlineDownloadCancelled) break;
+          const ok = await fetchPageWithRetry(p, 2);
+          if (!ok) failedPages.push(p);
+        }
+      }
+      const failed = failedPages.length;
 
       if (wrap) wrap.classList.add('hidden');
       btn.classList.remove('hidden');
@@ -2020,17 +2055,33 @@
 
   function sendNotification(title, body) {
     if (Notification.permission === 'granted' && navigator.serviceWorker) {
+      playNotificationSound();
       navigator.serviceWorker.ready.then((reg) => {
         reg.showNotification(title, {
           body,
           icon: 'icon-192.png',
           badge: 'icon-192.png',
-          dir: 'rtl'
+          dir: 'rtl',
+          silent: false,
+          vibrate: [80, 40, 80]
         });
       }).catch(() => {
-        try { new Notification(title, { body, icon: 'icon-192.png', dir: 'rtl' }); } catch (e) { /* تجاهل */ }
+        try { new Notification(title, { body, icon: 'icon-192.png', dir: 'rtl', silent: false }); } catch (e) { /* تجاهل */ }
       });
     }
+  }
+
+  // تشغيل نغمة تنبيه قصيرة مع كل إشعار، بدل الاكتفاء برسالة صامتة.
+  // تُستخدم للتذكيرات المحلية (أذكار، مواقيت الصلاة...) طالما التطبيق
+  // مفتوح (بالمقدمة أو الخلفية)، وأيضًا لإشعارات push الحقيقية عند وصولها
+  // والتطبيق ما زال له تبويب مفتوح (عبر رسالة من الـ Service Worker أدناه)
+  let notificationAudio = null;
+  function playNotificationSound() {
+    try {
+      if (!notificationAudio) notificationAudio = new Audio('notify.mp3');
+      notificationAudio.currentTime = 0;
+      notificationAudio.play().catch(() => { /* قد يمنع المتصفح التشغيل التلقائي أحيانًا */ });
+    } catch (e) { /* تجاهل */ }
   }
 
   function syncReminderUI() {
@@ -2195,6 +2246,8 @@
         // فتح التبويب المناسب حسب رابط الإشعار (اختياري) — الافتراضي فتح الصفحة الرئيسية فقط
       } else if (msg.type === 'push-resubscribed') {
         syncPushSubscription();
+      } else if (msg.type === 'play-notification-sound') {
+        playNotificationSound();
       }
     });
   }

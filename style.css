@@ -237,7 +237,6 @@ body.theme-night #header-context { color: var(--gold-soft); }
   align-items: center;
   justify-content: center;
   touch-action: none;
-  perspective: 1400px;
   position: relative;
 }
 
@@ -252,9 +251,7 @@ body.theme-night #header-context { color: var(--gold-soft); }
   box-shadow: 0 14px 34px var(--shadow), 0 0 0 1px rgba(201,162,39,.06) inset;
   border: 3px solid var(--gold-deep);
   touch-action: none;
-  will-change: transform, opacity, box-shadow;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
+  will-change: transform, opacity;
   cursor: grab;
   width: 100%;
   max-width: 560px;
