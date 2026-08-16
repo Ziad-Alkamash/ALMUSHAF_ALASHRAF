@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mushaf-ashraf-v7';
+const CACHE_NAME = 'mushaf-ashraf-v8';
 
 // طبقة تخزين منفصلة لبيانات القرآن المجلوبة من الإنترنت (صفحات المصحف، التفسير، الصوتيات، معاني الكلمات)
 // تبقى هذه البيانات محفوظة دائمًا حتى بعد تحديث التطبيق، ولا تُمسح إلا يدويًا من إعدادات المتصفح
@@ -18,6 +18,9 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  './notif-icon-192.png',
+  './notif-icon-512.png',
+  './notif-badge-96.png',
   './notify.mp3',
   './widget-duas.html',
   './widget-prayer.html',
@@ -104,13 +107,14 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'المصحف الأشرف';
   const options = {
     body: payload.body || '',
-    icon: payload.icon || './icon-192.png',
-    badge: payload.badge || './icon-192.png',
+    icon: payload.icon || './notif-icon-512.png',
+    badge: payload.badge || './notif-badge-96.png',
     dir: 'rtl',
     lang: 'ar',
     tag: payload.tag || undefined,
     renotify: !!payload.tag,
     silent: false,
+    requireInteraction: true, // يبقى ظاهرًا حتى يتفاعل معه المستخدم بدل اختفائه سريعًا
     data: { url: payload.url || './index.html' },
     vibrate: [80, 40, 80]
   };
@@ -118,11 +122,16 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     (async () => {
       await self.registration.showNotification(title, options);
-      // نطلب من أي نافذة مفتوحة للتطبيق تشغيل صوت التنبيه، لأن الـ Service
-      // Worker نفسه لا يمكنه تشغيل صوت مباشرة. إن كان التطبيق مغلقًا تمامًا
-      // فسيعتمد على صوت الإشعار الافتراضي في نظام التشغيل (silent: false أعلاه)
+      // نطلب من أي نافذة مفتوحة للتطبيق تشغيل صوت التنبيه وعرض البانر المنبثق
+      // داخل الواجهة، لأن الـ Service Worker نفسه لا يستطيع تشغيل صوت أو رسم
+      // واجهة مباشرة. إن كان التطبيق مغلقًا تمامًا فسيعتمد على إشعار النظام
+      // نفسه (silent: false و requireInteraction أعلاه)
       const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-      clientList.forEach((c) => c.postMessage({ type: 'play-notification-sound' }));
+      clientList.forEach((c) => c.postMessage({
+        type: 'push-notification-shown',
+        title,
+        body: options.body
+      }));
     })()
   );
 });

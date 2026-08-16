@@ -753,6 +753,18 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- بانر إشعار داخلي منبثق أعلى الشاشة (يظهر فوق كل شيء بشعار "أشرف")،
+     يُستخدم مع التذكيرات المحلية وإشعارات الدفع الحقيقية أثناء فتح التطبيق،
+     ليكون التنبيه دائمًا ظاهرًا كنافذة منبثقة وليس فقط رسالة في لوحة الإشعارات -->
+<div id="notif-popup" class="notif-popup" role="alert">
+  <img id="notif-popup-icon" class="notif-popup-icon" src="notif-icon-192.png" alt="">
+  <div class="notif-popup-text">
+    <strong id="notif-popup-title"></strong>
+    <span id="notif-popup-body"></span>
+  </div>
+  <button id="notif-popup-close" class="notif-popup-close" aria-label="إغلاق">✕</button>
+</div>
+
 <!-- السكريبتات -->
 <script src="azkar-data.js"></script>
 <script src="duas-data.js"></script>

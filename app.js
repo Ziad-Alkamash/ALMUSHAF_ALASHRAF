@@ -2054,21 +2054,58 @@
   }
 
   function sendNotification(title, body) {
+    // بانر منبثق داخل التطبيق نفسه (يظهر دائمًا فورًا بصريًا فوق الشاشة،
+    // بغض النظر عن سلوك نظام التشغيل مع إشعارات المتصفح)
+    showNotificationPopup(title, body);
+
     if (Notification.permission === 'granted' && navigator.serviceWorker) {
       playNotificationSound();
       navigator.serviceWorker.ready.then((reg) => {
         reg.showNotification(title, {
           body,
-          icon: 'icon-192.png',
-          badge: 'icon-192.png',
+          icon: 'notif-icon-512.png',
+          badge: 'notif-badge-96.png',
           dir: 'rtl',
           silent: false,
+          requireInteraction: true, // يبقى ظاهرًا حتى يتفاعل معه المستخدم بدل اختفائه سريعًا
           vibrate: [80, 40, 80]
         });
       }).catch(() => {
-        try { new Notification(title, { body, icon: 'icon-192.png', dir: 'rtl', silent: false }); } catch (e) { /* تجاهل */ }
+        try {
+          new Notification(title, {
+            body, icon: 'notif-icon-512.png', dir: 'rtl', silent: false, requireInteraction: true
+          });
+        } catch (e) { /* تجاهل */ }
       });
     }
+  }
+
+  // بانر إشعار منبثق أعلى الشاشة (شبيه بإشعارات واتساب/فيسبوك داخل التطبيق)
+  // بشعار "أشرف" الدائري، يظهر وينزلق من الأعلى فوق كل الواجهة مباشرة
+  let notifPopupTimer = null;
+  function showNotificationPopup(title, body) {
+    const el = $('#notif-popup');
+    if (!el) return;
+    $('#notif-popup-title').textContent = title || '';
+    $('#notif-popup-body').textContent = body || '';
+    el.classList.add('show');
+    clearTimeout(notifPopupTimer);
+    notifPopupTimer = setTimeout(() => el.classList.remove('show'), 6000);
+  }
+
+  function initNotificationPopup() {
+    const el = $('#notif-popup');
+    const closeBtn = $('#notif-popup-close');
+    if (!el || !closeBtn) return;
+    closeBtn.addEventListener('click', () => {
+      clearTimeout(notifPopupTimer);
+      el.classList.remove('show');
+    });
+    el.addEventListener('click', (e) => {
+      if (e.target === closeBtn) return;
+      clearTimeout(notifPopupTimer);
+      el.classList.remove('show');
+    });
   }
 
   // تشغيل نغمة تنبيه قصيرة مع كل إشعار، بدل الاكتفاء برسالة صامتة.
@@ -2246,8 +2283,9 @@
         // فتح التبويب المناسب حسب رابط الإشعار (اختياري) — الافتراضي فتح الصفحة الرئيسية فقط
       } else if (msg.type === 'push-resubscribed') {
         syncPushSubscription();
-      } else if (msg.type === 'play-notification-sound') {
+      } else if (msg.type === 'push-notification-shown') {
         playNotificationSound();
+        showNotificationPopup(msg.title, msg.body);
       }
     });
   }
@@ -2265,6 +2303,7 @@
     syncReminderUI();
     startReminderScheduler();
     initPushMessaging();
+    initNotificationPopup();
 
     btn.addEventListener('click', async () => {
       if (!('Notification' in window)) {
