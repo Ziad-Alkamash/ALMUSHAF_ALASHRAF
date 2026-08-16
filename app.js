@@ -80,6 +80,7 @@
         tab === 'home' ? 'ختمتي والملخص' :
         tab === 'azkar' ? 'الأذكار' :
         tab === 'duas' ? 'الأدعية الصحيحة' :
+        tab === 'hadith' ? 'الحديث الشريف' :
         tab === 'favorites' ? 'المفضلة' : 'مواقيت الصلاة';
     }
 
@@ -147,6 +148,32 @@
 
     const playerBtn = $('#btn-home-player');
     if (playerBtn) playerBtn.addEventListener('click', () => openPlayerOverlay());
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* تبويب الحديث الشريف: بحث في الموسوعة الحديثية بموقع الدرر السنية  */
+  /* ---------------------------------------------------------------- */
+  function initHadithTab() {
+    const input = $('#hadith-search-input');
+    const btn = $('#btn-hadith-search');
+    if (!btn) return;
+
+    function openDorarSearch() {
+      const q = (input && input.value || '').trim();
+      // موقع الدرر السنية يقرأ نص البحث من حقل الاستمارة عبر GET، هذا هو المفتاح
+      // المستخدم فعليًا في نموذج البحث الشامل بالموقع
+      const url = q
+        ? `https://dorar.net/site/search?q=${encodeURIComponent(q)}`
+        : 'https://dorar.net/site/search';
+      window.open(url, '_blank', 'noopener');
+    }
+
+    btn.addEventListener('click', openDorarSearch);
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') openDorarSearch();
+      });
+    }
   }
 
   /* ---------------------------------------------------------------- */
@@ -2538,6 +2565,7 @@
   async function init() {
     initNavMenu();
     initHomeTab();
+    initHadithTab();
     initDuaBanner();
     initIndexOverlay();
     initSwipeNavigation();
