@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B3D2E">
+<title>مواقيت الصلاة — المصحف الأشرف</title>
+
+<link rel="manifest" href="manifest-widget-prayer.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مواقيت الصلاة">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<style>
+  html, body { overflow-y: auto; overscroll-behavior-y: auto; }
+  body.widget-body {
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, var(--emerald-2), var(--emerald) 70%);
+    padding: env(safe-area-inset-top, 18px) 16px calc(env(safe-area-inset-bottom, 18px) + 16px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .widget-header { text-align: center; padding: 10px 0 4px; }
+  .widget-header .emblem { width: 54px; height: 54px; color: var(--gold-soft); margin: 0 auto 8px; }
+  .widget-header h1 { font-family: var(--font-display); color: var(--gold-soft); font-size: 22px; margin: 0; }
+
+  .widget-footer { text-align: center; padding: 6px 0 2px; }
+  .widget-footer a { color: var(--gold-soft); font-size: 12.5px; text-decoration: underline; }
+
+  /* الصفحة نفسها تتمرر عند الحاجة، فنُلغي القياسات الثابتة المخصصة لتبويب داخل التطبيق الرئيسي */
+  .prayer-container { height: auto; overflow: visible; padding: 0; background: transparent; }
+</style>
+</head>
+<body class="widget-body">
+
+  <svg style="display:none;">
+    <symbol id="w-emblem" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M50 12 L58 38 L86 38 L63 54 L71 80 L50 64 L29 80 L37 54 L14 38 L42 38 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="50" cy="50" r="6" fill="currentColor"/>
+    </symbol>
+  </svg>
+
+  <div class="widget-header">
+    <svg class="emblem"><use href="#w-emblem"></use></svg>
+    <h1>مواقيت الصلاة</h1>
+  </div>
+
+  <div class="prayer-container">
+    <div class="next-prayer-card">
+      <span id="hijri-date" class="hijri-date">جارٍ تحديد التاريخ الهجري...</span>
+      <div class="next-prayer-info">
+        <span class="label">الصلاة القادمة:</span>
+        <h2 id="next-prayer-name">--</h2>
+        <div id="prayer-countdown" class="countdown-timer">--:--:--</div>
+      </div>
+    </div>
+
+    <div id="prayer-grid" class="prayer-grid">
+      <div class="p-card" data-p="Fajr"><span class="p-name">الفجر</span><span class="p-time">--:--</span></div>
+      <div class="p-card" data-p="Sunrise"><span class="p-name">الشروق</span><span class="p-time">--:--</span></div>
+      <div class="p-card" data-p="Dhuhr"><span class="p-name">الظهر</span><span class="p-time">--:--</span></div>
+      <div class="p-card" data-p="Asr"><span class="p-name">العصر</span><span class="p-time">--:--</span></div>
+      <div class="p-card" data-p="Maghrib"><span class="p-name">المغرب</span><span class="p-time">--:--</span></div>
+      <div class="p-card" data-p="Isha"><span class="p-name">العشاء</span><span class="p-time">--:--</span></div>
+    </div>
+  </div>
+
+  <div class="widget-footer">
+    <a href="index.html">فتح المصحف الأشرف كاملاً ↩</a>
+  </div>
+
+<script>
+  var $ = function (sel) { return document.querySelector(sel); };
+  var ARABIC_DIGITS = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  function toArabicDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return ARABIC_DIGITS[d]; }); }
+
+  var PRAYER_NAMES = { Fajr: 'الفجر', Sunrise: 'الشروق', Dhuhr: 'الظهر', Asr: 'العصر', Maghrib: 'المغرب', Isha: 'العشاء' };
+
+  function format12Hour(time24) {
+    var parts = time24.split(':').map(Number);
+    var h = parts[0], m = parts[1];
+    var period = h >= 12 ? 'م' : 'ص';
+    var h12 = h % 12 || 12;
+    return toArabicDigits(h12) + ':' + toArabicDigits(String(m).padStart(2, '0')) + ' ' + period;
+  }
+
+  function renderPrayerTimes(timings) {
+    Object.keys(PRAYER_NAMES).forEach(function (key) {
+      var card = document.querySelector('.p-card[data-p="' + key + '"]');
+      if (card) card.querySelector('.p-time').textContent = format12Hour(timings[key]);
+    });
+  }
+
+  var timerInterval = null;
+  function startNextPrayerCountdown(timings) {
+    if (timerInterval) clearInterval(timerInterval);
+
+    function update() {
+      var now = new Date();
+      var list = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+      var nextP = null, nextTime = null;
+
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        var parts = timings[p].split(':').map(Number);
+        var pDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1], 0);
+        if (pDate > now) { nextP = p; nextTime = pDate; break; }
+      }
+      if (!nextP) {
+        nextP = 'Fajr';
+        var fParts = timings['Fajr'].split(':').map(Number);
+        nextTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, fParts[0], fParts[1], 0);
+      }
+
+      document.querySelectorAll('.p-card').forEach(function (c) { c.classList.remove('active'); });
+      var activeCard = document.querySelector('.p-card[data-p="' + nextP + '"]');
+      if (activeCard) activeCard.classList.add('active');
+
+      var nextName = $('#next-prayer-name');
+      if (nextName) nextName.textContent = PRAYER_NAMES[nextP];
+
+      var diff = nextTime - now;
+      var hrs = Math.floor(diff / 3600000);
+      var mins = Math.floor((diff % 3600000) / 60000);
+      var secs = Math.floor((diff % 60000) / 1000);
+      var cd = $('#prayer-countdown');
+      if (cd) cd.textContent = toArabicDigits(String(hrs).padStart(2, '0')) + ':' + toArabicDigits(String(mins).padStart(2, '0')) + ':' + toArabicDigits(String(secs).padStart(2, '0'));
+    }
+    update();
+    timerInterval = setInterval(update, 1000);
+  }
+
+  async function fetchTimings(lat, lng) {
+    try {
+      var res = await fetch('https://api.aladhan.com/v1/timings?latitude=' + lat + '&longitude=' + lng + '&method=5');
+      var data = await res.json();
+      if (data && data.data) {
+        var hijri = data.data.date.hijri;
+        var hijriEl = $('#hijri-date');
+        if (hijriEl) hijriEl.textContent = hijri.day + ' ' + hijri.month.ar + ' ' + hijri.year + ' هـ';
+        renderPrayerTimes(data.data.timings);
+        startNextPrayerCountdown(data.data.timings);
+      }
+    } catch (e) {
+      var nextName = $('#next-prayer-name');
+      if (nextName) nextName.textContent = 'تعذر جلب المواقيت';
+    }
+  }
+
+  var DEFAULT_LAT = 30.0444, DEFAULT_LNG = 31.2357;
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      function (pos) { fetchTimings(pos.coords.latitude, pos.coords.longitude); },
+      function () { fetchTimings(DEFAULT_LAT, DEFAULT_LNG); }
+    );
+  } else {
+    fetchTimings(DEFAULT_LAT, DEFAULT_LNG);
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>

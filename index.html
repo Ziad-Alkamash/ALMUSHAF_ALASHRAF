@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0B3D2E">
+  <meta name="description" content="المصحف الأشرف — مصحف إلكتروني برسم مصحف المدينة النبوية، برواية حفص عن عاصم، مع تفسير الآيات وأسباب النزول ومعاني الكلمات، وتبويب للأذكار والأدعية الصحيحة ومواقيت الصلاة">
+  <title>المصحف الأشرف</title>
+
+  <!-- PWA & App Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="المصحف الأشرف">
+  
+  <!-- الأيقونات -->
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- الخطوط -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== شاشة البداية ===== -->
+<div id="splash">
+  <div class="splash-emblem" aria-hidden="true">
+    <svg viewBox="0 0 100 100"><use href="#emblem-star"></use></svg>
+  </div>
+  <h1 class="splash-title">المصحف الأشرف</h1>
+  <p class="splash-sub">برواية حفص عن عاصم</p>
+</div>
+
+<!-- ===== رموز SVG مشتركة ===== -->
+<svg style="display: none;">
+  <defs>
+    <symbol id="emblem-star" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="1"/>
+      <path d="M50 12 L58 38 L86 38 L63 54 L71 80 L50 64 L29 80 L37 54 L14 38 L42 38 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="50" cy="50" r="6" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 6.2c-1.8-1.3-4.2-2-6.5-2-.8 0-1.5.6-1.5 1.4v13c0 .8.7 1.3 1.5 1.2 2.1-.3 4.7.3 6.5 1.6 1.8-1.3 4.4-1.9 6.5-1.6.8.1 1.5-.4 1.5-1.2v-13c0-.8-.7-1.4-1.5-1.4-2.3 0-4.7.7-6.5 2zM12 6.2v15"/>
+    </symbol>
+    <symbol id="icon-beads" viewBox="0 0 24 24">
+      <circle cx="12" cy="4" r="1.8"/><circle cx="18" cy="7" r="1.8"/><circle cx="20.2" cy="13.2" r="1.8"/>
+      <circle cx="16" cy="18.5" r="1.8"/><circle cx="9" cy="19.4" r="1.8"/><circle cx="3.8" cy="15" r="1.8"/>
+      <circle cx="4.2" cy="8.6" r="1.8"/><circle cx="8.6" cy="4.4" r="1.5"/>
+    </symbol>
+    <symbol id="icon-hands" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 3c-1.2 3-1.2 6.2 0 9.2M12 3c1.2 3 1.2 6.2 0 9.2M3.6 21c1-6.3 3-9.6 5.4-10M20.4 21c-1-6.3-3-9.6-5.4-10"/>
+    </symbol>
+    <symbol id="icon-mosque" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 3v3M12 6c-2.5 0-4.5 2-4.5 4.5V21h9V10.5C16.5 8 14.5 6 12 6zM6 12v9M18 12v9M3 21h18"/>
+    </symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="21" y1="21" x2="16.2" y2="16.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z"/></symbol>
+    <symbol id="icon-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></symbol>
+    <symbol id="icon-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 9l7 7 7-7"/>
+    </symbol>
+    <symbol id="icon-chevron-up" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 15l-7-7-7 7"/>
+    </symbol>
+    <symbol id="icon-menu-dots" viewBox="0 0 24 24">
+      <circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="7" r="2.3"/>
+      <circle cx="7" cy="17" r="2.3"/><circle cx="17" cy="17" r="2.3"/>
+    </symbol>
+    <symbol id="icon-reset" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 1 1 3 6.7"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 21v-6h6"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ===== الهيدر العلوي: شريط رفيع بطراز المصحف ===== -->
+<header id="app-header">
+  <div class="header-side header-right">
+    <span id="header-context">المصحف الأشرف</span>
+  </div>
+  <button class="menu-dot-btn" id="btn-menu" aria-label="فتح القائمة">
+    <svg><use href="#icon-menu-dots"></use></svg>
+  </button>
+  <div class="header-side header-left">
+    <button class="header-mini-btn" id="btn-header-bookmark" aria-label="آخر قراءة">
+      <svg><use href="#icon-bookmark"></use></svg>
+    </button>
+    <span id="header-juz"></span>
+  </div>
+</header>
+
+<!-- ===== المحتوى الرئيسي ===== -->
+<main id="app-main">
+
+  <!-- تبويب القرآن -->
+  <section id="view-quran" class="view active">
+    <div id="mushaf-wrap">
+      <article id="mushaf-page">
+        <div class="page-frame-corner tl" aria-hidden="true"></div>
+        <div class="page-frame-corner tr" aria-hidden="true"></div>
+        <div class="page-frame-corner bl" aria-hidden="true"></div>
+        <div class="page-frame-corner br" aria-hidden="true"></div>
+
+        <div id="surah-header">
+          <div class="surah-header-ornament">
+            <span id="surah-name-ar">الفاتحة</span>
+          </div>
+          <div id="surah-meta"></div>
+          <div id="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+        </div>
+
+        <div id="ayat-container" class="mushaf-text"></div>
+
+        <div id="page-foot-bar">
+          <span id="page-hizb-info"></span>
+          <span id="surah-progress"></span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- تبويب الأذكار -->
+  <section id="view-azkar" class="view">
+    <div class="list-page">
+      <h2 class="list-title">حصن المسلم — الأذكار</h2>
+      <div id="azkar-accordion" class="accordion"></div>
+    </div>
+  </section>
+
+  <!-- تبويب الأدعية -->
+  <section id="view-duas" class="view">
+    <div class="list-page">
+      <h2 class="list-title">الأدعية الصحيحة عن النبي صلى الله عليه وسلم</h2>
+      <div id="duas-accordion" class="accordion"></div>
+    </div>
+  </section>
+
+  <!-- تبويب مواقيت الصلاة والقبلة -->
+  <section id="view-prayer" class="view">
+    <div class="prayer-container">
+      <!-- كارت الصلاة القادمة والعد التنازلي -->
+      <div class="next-prayer-card">
+        <span id="hijri-date" class="hijri-date">جارٍ تحديد التاريخ الهجري...</span>
+        <div class="next-prayer-info">
+          <span class="label">الصلاة القادمة:</span>
+          <h2 id="next-prayer-name">--</h2>
+          <div id="prayer-countdown" class="countdown-timer">--:--:--</div>
+        </div>
+      </div>
+
+      <!-- شبكة مواقيت الصلاة -->
+      <div id="prayer-grid" class="prayer-grid">
+        <div class="p-card" data-p="Fajr"><span class="p-name">الفجر</span><span class="p-time">--:--</span></div>
+        <div class="p-card" data-p="Sunrise"><span class="p-name">الشروق</span><span class="p-time">--:--</span></div>
+        <div class="p-card" data-p="Dhuhr"><span class="p-name">الظهر</span><span class="p-time">--:--</span></div>
+        <div class="p-card" data-p="Asr"><span class="p-name">العصر</span><span class="p-time">--:--</span></div>
+        <div class="p-card" data-p="Maghrib"><span class="p-name">المغرب</span><span class="p-time">--:--</span></div>
+        <div class="p-card" data-p="Isha"><span class="p-name">العشاء</span><span class="p-time">--:--</span></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== نافذة القائمة المنبثقة (بديل الشريط السفلي) ===== -->
+<div id="nav-overlay" class="overlay nav-overlay">
+  <div class="overlay-sheet nav-sheet">
+    <div class="nav-sheet-handle" aria-hidden="true"></div>
+    <div class="overlay-head">
+      <h3>القائمة</h3>
+      <button class="icon-btn" id="btn-close-nav" aria-label="إغلاق القائمة"><svg><use href="#icon-close"></use></svg></button>
+    </div>
+    <div class="nav-grid">
+      <button class="nav-item active" data-tab="quran">
+        <span class="nav-item-icon"><svg><use href="#icon-book"></use></svg></span>
+        <span>القرآن الكريم</span>
+      </button>
+      <button class="nav-item" data-tab="azkar">
+        <span class="nav-item-icon"><svg><use href="#icon-beads"></use></svg></span>
+        <span>الأذكار</span>
+      </button>
+      <button class="nav-item" data-tab="duas">
+        <span class="nav-item-icon"><svg><use href="#icon-hands"></use></svg></span>
+        <span>الأدعية</span>
+      </button>
+      <button class="nav-item" data-tab="prayer">
+        <span class="nav-item-icon"><svg><use href="#icon-mosque"></use></svg></span>
+        <span>مواقيت الصلاة</span>
+      </button>
+      <button class="nav-item" data-action="index">
+        <span class="nav-item-icon"><svg><use href="#icon-book"></use></svg></span>
+        <span>فهرس السور</span>
+      </button>
+      <button class="nav-item" data-action="search">
+        <span class="nav-item-icon"><svg><use href="#icon-search"></use></svg></span>
+        <span>بحث في السور</span>
+      </button>
+      <button class="nav-item" data-action="settings">
+        <span class="nav-item-icon"><svg><use href="#icon-settings"></use></svg></span>
+        <span>الإعدادات</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== فهرس السور + البحث في نص الآيات ===== -->
+<div id="index-overlay" class="overlay">
+  <div class="overlay-sheet">
+    <div class="overlay-head">
+      <h3>الفهرس والبحث</h3>
+      <button class="icon-btn" id="btn-close-index" aria-label="إغلاق الفهرس"><svg><use href="#icon-close"></use></svg></button>
+    </div>
+
+    <div class="index-tabs">
+      <button class="index-tab active" data-index-tab="surah">
+        <svg><use href="#icon-book"></use></svg> فهرس السور
+      </button>
+      <button class="index-tab" data-index-tab="ayah">
+        <svg><use href="#icon-search"></use></svg> بحث في الآيات
+      </button>
+    </div>
+
+    <div id="index-tab-surah" class="index-tab-panel active">
+      <input type="text" id="surah-search" class="text-input" placeholder="ابحث باسم السورة...">
+      <div id="surah-list" class="surah-list"></div>
+    </div>
+
+    <div id="index-tab-ayah" class="index-tab-panel">
+      <input type="text" id="ayah-search" class="text-input" placeholder="ابحث بكلمة من نص الآية، مثال: الرحمن">
+      <div id="ayah-search-results" class="ayah-search-results">
+        <p class="ayah-search-hint">اكتب كلمة من أي آية في القرآن الكريم للوصول إليها مباشرة، بحث شامل في كل صفحات المصحف.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة خيارات الآية ===== -->
+<div id="ayah-overlay" class="overlay">
+  <div class="overlay-sheet">
+    <div class="overlay-head">
+      <h3 id="ayah-modal-title">الآية</h3>
+      <button class="icon-btn" id="btn-close-ayah" aria-label="إغلاق خيارات الآية"><svg><use href="#icon-close"></use></svg></button>
+    </div>
+    <p id="ayah-modal-text" class="ayah-modal-text"></p>
+
+    <div class="ayah-options" id="ayah-options">
+      <button class="option-btn" data-panel="tafsir">
+        <span class="opt-icon">📘</span>
+        <span>تفسير الآية</span>
+      </button>
+      <button class="option-btn" data-panel="asbab">
+        <span class="opt-icon">📜</span>
+        <span>سبب النزول</span>
+      </button>
+      <button class="option-btn" data-panel="gharib">
+        <span class="opt-icon">🔤</span>
+        <span>معاني الكلمات</span>
+      </button>
+      <button class="option-btn" data-panel="audio" id="btn-ayah-audio">
+        <span class="opt-icon"><svg><use href="#icon-play"></use></svg></span>
+        <span>استماع الآية</span>
+      </button>
+      <button class="option-btn" data-panel="bookmark" id="btn-ayah-bookmark">
+        <span class="opt-icon"><svg><use href="#icon-bookmark"></use></svg></span>
+        <span>حفظ كعلامة</span>
+      </button>
+      <button class="option-btn" data-panel="share-img">
+        <span class="opt-icon">🖼️</span>
+        <span>مشاركة كصورة</span>
+      </button>
+    </div>
+
+    <div id="ayah-panel-content" class="panel-content"></div>
+  </div>
+</div>
+
+<!-- ===== الإعدادات ===== -->
+<div id="settings-overlay" class="overlay">
+  <div class="overlay-sheet settings-sheet">
+    <div class="nav-sheet-handle" aria-hidden="true"></div>
+    <div class="overlay-head">
+      <h3>الإعدادات</h3>
+      <button class="icon-btn" id="btn-close-settings" aria-label="إغلاق الإعدادات"><svg><use href="#icon-close"></use></svg></button>
+    </div>
+
+    <!-- التذكيرات والإشعارات المجدولة -->
+    <div class="settings-section">
+      <h4 class="settings-section-title">التذكيرات والإشعارات</h4>
+      <div class="settings-card">
+
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🔔</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">إذن الإشعارات</span>
+              <span class="settings-card-sub">لازم تُفعَّل أولاً حتى تعمل التذكيرات بالأسفل</span>
+            </div>
+          </div>
+          <button id="btn-enable-notify" class="chip-btn">تفعيل</button>
+        </div>
+
+        <div class="settings-card-row" data-reminder-row="sabah">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">☀️</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تذكير أذكار الصباح</span>
+              <span class="settings-card-sub">تنبيه يومي في الوقت المحدد</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <input type="time" id="time-sabah" class="time-input" value="06:00">
+            <label class="switch">
+              <input type="checkbox" id="toggle-sabah">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card-row" data-reminder-row="masaa">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🌙</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تذكير أذكار المساء</span>
+              <span class="settings-card-sub">تنبيه يومي في الوقت المحدد</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <input type="time" id="time-masaa" class="time-input" value="18:00">
+            <label class="switch">
+              <input type="checkbox" id="toggle-masaa">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card-row" data-reminder-row="kahf">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">📖</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تذكير سورة الكهف</span>
+              <span class="settings-card-sub">كل يوم جمعة في الوقت المحدد</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <input type="time" id="time-kahf" class="time-input" value="08:00">
+            <label class="switch">
+              <input type="checkbox" id="toggle-kahf">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card-row" data-reminder-row="prayers">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🕌</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تذكير بمواقيت الصلاة</span>
+              <span class="settings-card-sub">إشعار تلقائي عند دخول وقت كل صلاة (الفجر، الظهر، العصر، المغرب، العشاء)</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <label class="switch">
+              <input type="checkbox" id="toggle-prayers">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <p class="settings-mini-note">تعمل هذه التذكيرات أثناء فتح التطبيق أو تشغيله في الخلفية على نفس الجهاز؛ إشعارات الدفع بعد إغلاق التطبيق تمامًا تحتاج خادمًا خارجيًا غير متوفر حاليًا في هذا الإصدار.</p>
+      </div>
+    </div>
+
+    <!-- تحميل صفحات المصحف كاملة للعمل بدون إنترنت -->
+    <div class="settings-section">
+      <h4 class="settings-section-title">التنزيل للقراءة بدون إنترنت</h4>
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">⬇️</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تحميل كل صفحات المصحف (٦٠٤)</span>
+              <span class="settings-card-sub" id="offline-download-sub">تحميل لمرة واحدة، ثم تُقرأ كل صفحات المصحف بدون أي اتصال بالإنترنت</span>
+            </div>
+          </div>
+          <button id="btn-download-offline" class="chip-btn">تحميل</button>
+        </div>
+        <div id="offline-progress-wrap" class="offline-progress-wrap hidden">
+          <div class="offline-progress-bar"><div id="offline-progress-fill" class="offline-progress-fill"></div></div>
+          <div class="offline-progress-text">
+            <span id="offline-progress-label">٠٪</span>
+            <button id="btn-cancel-download" class="mini-link-btn">إلغاء</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ويدجت الشاشة الرئيسية -->
+    <div class="settings-section">
+      <h4 class="settings-section-title">ويدجت على شاشة الهاتف الرئيسية</h4>
+      <div class="settings-card">
+        <div class="settings-card-row widget-link-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🕊️</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">ويدجت الدعاء للفقيد</span>
+              <span class="settings-card-sub">أشرف أحمد جاهين رحمه الله</span>
+            </div>
+          </div>
+          <a href="widget-duas.html" target="_blank" rel="noopener" class="widget-link-btn">فتح ⤴</a>
+        </div>
+        <div class="settings-card-row widget-link-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🕌</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">ويدجت مواقيت الصلاة</span>
+              <span class="settings-card-sub">الصلاة القادمة والعد التنازلي لها</span>
+            </div>
+          </div>
+          <a href="widget-prayer.html" target="_blank" rel="noopener" class="widget-link-btn">فتح ⤴</a>
+        </div>
+        <p class="settings-mini-note">افتح الويدجت ثم اختر "إضافة إلى الشاشة الرئيسية" من قائمة متصفحك، فتظهر كأيقونة مستقلة تفتح مباشرة على هذا المحتوى. ملاحظة: هذه أيقونات تطبيق منفصلة يفتحها الهاتف عند الضغط عليها، وليست ويدجت حية تتحرك تلقائيًا فوق الشاشة الرئيسية كوِدجت أندرويد/آيفون الأصلية، لأن المتصفحات لا تتيح هذا النوع من الويدجت الحية لمواقع الويب حتى الآن.</p>
+      </div>
+    </div>
+
+    <!-- القراءة والمظهر -->
+    <div class="settings-section">
+      <h4 class="settings-section-title">القراءة والمظهر</h4>
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🔠</span>
+            <div class="settings-card-text"><span class="settings-card-title">حجم الخط</span></div>
+          </div>
+          <div class="settings-control">
+            <button id="font-dec" class="chip-btn" aria-label="تصغير الخط">−</button>
+            <span id="font-size-label">A</span>
+            <button id="font-inc" class="chip-btn" aria-label="تكبير الخط">+</button>
+          </div>
+        </div>
+
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🎨</span>
+            <div class="settings-card-text"><span class="settings-card-title">المظهر</span></div>
+          </div>
+          <div class="settings-control">
+            <button class="chip-btn theme-choice" data-theme="paper">ورقي</button>
+            <button class="chip-btn theme-choice" data-theme="night">ليلي</button>
+          </div>
+        </div>
+
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon"><svg><use href="#icon-bookmark"></use></svg></span>
+            <div class="settings-card-text"><span class="settings-card-title">آخر قراءة</span></div>
+          </div>
+          <button id="btn-goto-lastread" class="chip-btn">الانتقال إليها</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="settings-note">تعمل بيانات القرآن والتفسير ومعاني الكلمات عبر الإنترنت من مصادر إسلامية موثوقة، وتُحفظ نسخة مؤقتة منها للقراءة لاحقًا بلا اتصال.</p>
+  </div>
+</div>
+
+<!-- شريط الدعاء للصدقة الجارية -->
+<div id="dua-banner" class="dua-banner">
+  <div class="dua-content">
+    <span>🤲 اللهم اغفر لفقيدنا <strong>أشرف أحمد جاهين</strong> وارحمه واجعل هذا المصحف صدقة جارية له</span>
+    <button id="btn-amin" class="btn-amin">آمين</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- السكريبتات -->
+<script src="azkar-data.js"></script>
+<script src="duas-data.js"></script>
+<script src="asbab-data.js"></script>
+<script src="quran-api.js"></script>
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('PWA Service Worker Registered Successfully!', reg))
+        .catch(err => console.error('Service Worker Registration Failed:', err));
+    });
+  }
+</script>
+</body>
+</html>

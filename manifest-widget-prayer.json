@@ -1,0 +1,19 @@
+{
+  "name": "مواقيت الصلاة — المصحف الأشرف",
+  "short_name": "مواقيت الصلاة",
+  "description": "ويدجت الصلاة القادمة والعد التنازلي لها من تطبيق المصحف الأشرف",
+  "start_url": "./widget-prayer.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0B3D2E",
+  "theme_color": "#0B3D2E",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

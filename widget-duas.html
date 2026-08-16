@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B3D2E">
+<title>دعاء للفقيد — المصحف الأشرف</title>
+
+<link rel="manifest" href="manifest-widget-duas.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="دعاء للفقيد">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<style>
+  html, body { overflow-y: auto; overscroll-behavior-y: auto; }
+  body.widget-body {
+    min-height: 100%;
+    background: radial-gradient(circle at 50% 0%, var(--emerald-2), var(--emerald) 70%);
+    padding: env(safe-area-inset-top, 18px) 16px calc(env(safe-area-inset-bottom, 18px) + 16px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .widget-header { text-align: center; padding: 10px 0 4px; }
+  .widget-header .emblem { width: 54px; height: 54px; color: var(--gold-soft); margin: 0 auto 8px; }
+  .widget-header h1 { font-family: var(--font-display); color: var(--gold-soft); font-size: 22px; margin: 0; }
+  .widget-header p { color: rgba(234,201,108,.75); font-size: 13px; margin: 4px 0 0; }
+
+  .widget-card {
+    background: linear-gradient(160deg, var(--paper-deep), var(--paper));
+    border: 1px solid var(--gold);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  }
+  .widget-card .dua-text {
+    font-family: var(--font-quran);
+    font-size: 19px;
+    line-height: 2;
+    color: var(--mushaf-ink);
+    margin: 0 0 8px;
+  }
+  .widget-card .dua-source { font-size: 11.5px; color: var(--gold-deep); text-align: left; margin: 0; }
+
+  .amin-wrap { text-align: center; padding: 8px 0 4px; }
+  .amin-btn {
+    background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+    color: var(--emerald);
+    font-weight: 800;
+    font-size: 16px;
+    padding: 12px 40px;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .amin-btn:active { transform: scale(.95); }
+  .amin-count { display: block; margin-top: 8px; font-size: 12px; color: rgba(234,201,108,.8); }
+
+  .widget-footer { text-align: center; padding: 6px 0 2px; }
+  .widget-footer a { color: var(--gold-soft); font-size: 12.5px; text-decoration: underline; }
+</style>
+</head>
+<body class="widget-body">
+
+  <svg style="display:none;">
+    <symbol id="w-emblem" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M50 12 L58 38 L86 38 L63 54 L71 80 L50 64 L29 80 L37 54 L14 38 L42 38 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="50" cy="50" r="6" fill="currentColor"/>
+    </symbol>
+  </svg>
+
+  <div class="widget-header">
+    <svg class="emblem"><use href="#w-emblem"></use></svg>
+    <h1>دعاء للفقيد</h1>
+    <p>أشرف أحمد جاهين — رحمه الله وأسكنه فسيح جنانه</p>
+  </div>
+
+  <div id="dua-list"></div>
+
+  <div class="amin-wrap">
+    <button class="amin-btn" id="btn-amin">آمين 🤲</button>
+    <span class="amin-count" id="amin-count"></span>
+  </div>
+
+  <div class="widget-footer">
+    <a href="index.html">فتح المصحف الأشرف كاملاً ↩</a>
+  </div>
+
+<script>
+  // نفس أدعية قسم "دعاء للفقيد" في تبويب الأدعية بالتطبيق الرئيسي، مكرَّرة هنا
+  // عمدًا حتى تعمل هذه الصفحة وحدها كويدجت مستقل بدون الاعتماد على ملفات أخرى
+  var WIDGET_DUAS = [
+    { text: 'اللَّهُمَّ اغْفِرْ لَهُ وَارْحَمْهُ، وَعَافِهِ وَاعْفُ عَنْهُ.', source: 'من دعاء صلاة الجنازة، رواه مسلم' },
+    { text: 'اللَّهُمَّ افْسَحْ لَهُ فِي قَبْرِهِ، وَنَوِّرْ لَهُ فِيهِ.', source: 'من أدعية الميت المأثورة' },
+    { text: 'اللَّهُمَّ اجْعَلْ قَبْرَهُ رَوْضَةً مِنْ رِيَاضِ الْجَنَّةِ، وَلَا تَجْعَلْهُ حُفْرَةً مِنْ حُفَرِ النَّارِ.', source: 'من أدعية الميت المأثورة' },
+    { text: 'رَبَّنَا اغْفِرْ لَنَا وَلِإِخْوَانِنَا الَّذِينَ سَبَقُونَا بِالْإِيمَانِ وَلَا تَجْعَلْ فِي قُلُوبِنَا غِلًّا لِلَّذِينَ آمَنُوا رَبَّنَا إِنَّكَ رَءُوفٌ رَحِيمٌ.', source: 'سورة الحشر' },
+    { text: 'اللَّهُمَّ اجْعَلْ هَذَا الْمُصْحَفَ صَدَقَةً جَارِيَةً لَهُ، وَعِلْمًا يُنْتَفَعُ بِهِ، يَجْرِي أَجْرُهُ إِلَيْهِ فِي قَبْرِهِ.', source: '' }
+  ];
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  var list = document.getElementById('dua-list');
+  list.innerHTML = WIDGET_DUAS.map(function (d) {
+    return '<div class="widget-card">' +
+      '<p class="dua-text">' + esc(d.text) + '</p>' +
+      (d.source ? '<p class="dua-source">' + esc(d.source) + '</p>' : '') +
+      '</div>';
+  }).join('');
+
+  var COUNT_KEY = 'almus-hraf:widgetAminCount';
+  var countEl = document.getElementById('amin-count');
+  function renderCount() {
+    var n = Number(localStorage.getItem(COUNT_KEY) || 0);
+    countEl.textContent = n > 0 ? ('دعوت له ' + n + ' مرة من هذا الجهاز، تقبل الله 🤍') : '';
+  }
+  renderCount();
+
+  document.getElementById('btn-amin').addEventListener('click', function () {
+    var n = Number(localStorage.getItem(COUNT_KEY) || 0) + 1;
+    localStorage.setItem(COUNT_KEY, String(n));
+    renderCount();
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>

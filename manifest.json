@@ -1,0 +1,33 @@
+{
+  "name": "المصحف الأشرف",
+  "short_name": "المصحف الأشرف",
+  "description": "مصحف إلكتروني برواية حفص عن عاصم، برسم مصحف المدينة النبوية، مع الأذكار والأدعية الصحيحة وتفسير الآيات وأسباب النزول ومعاني الكلمات",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0B3D2E",
+  "theme_color": "#0B3D2E",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "دعاء للفقيد أشرف أحمد جاهين",
+      "short_name": "دعاء للفقيد",
+      "url": "./widget-duas.html",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "مواقيت الصلاة",
+      "short_name": "المواقيت",
+      "url": "./widget-prayer.html",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
