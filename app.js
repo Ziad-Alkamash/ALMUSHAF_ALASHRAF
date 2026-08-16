@@ -26,7 +26,9 @@
     audioEl: null,
     surahAudioEl: null,
     surahAudioSurah: null,
-    surahAudioReciter: null
+    surahAudioReciter: null,
+    playerMode: null,        // 'surah' | 'ayah' | null — يحدد سلوك التالي/السابق وعنوان الشريط
+    ayahPlayerAyahNum: null  // رقم الآية الحالية داخل السورة، مستخدَم فقط في وضع 'ayah'
   };
 
   /* ---------------------------------------------------------------- */
@@ -869,6 +871,14 @@
     if (panel === 'audio') {
       return toggleAyahAudio(btnEl);
     }
+    if (panel === 'play-from-here') {
+      closeOverlay('#ayah-overlay');
+      if (window.__playerControls && window.__playerControls.playAyahContinuous) {
+        window.__playerControls.playAyahContinuous(surah, ayah);
+        showToast('بدأ التشغيل المتواصل من هذه الآية، وهيكمل تلقائيًا لحد ما توقفه 🎧');
+      }
+      return;
+    }
     if (panel === 'bookmark') {
       localStorage.setItem(
         'almus-hraf:bookmark',
@@ -1011,10 +1021,13 @@
     const barTitleEl = $('#surah-audio-title');
     const barReciterEl = $('#surah-audio-reciter');
     const barCloseBtn = $('#surah-audio-close');
+    const barHideBtn = $('#surah-audio-hide');
     const barSeek = $('#surah-audio-seek');
     const barPrevBtn = $('#surah-audio-prev');
     const barNextBtn = $('#surah-audio-next');
     const barExpandBtn = $('#surah-audio-expand');
+    const barMiniDisc = $('#surah-audio-mini-disc');
+    const showBarFab = $('#btn-show-player-bar');
 
     const overlayTitleEl = $('#player-surah-title');
     const overlayReciterEl = $('#player-reciter-name');
@@ -1039,6 +1052,11 @@
       return '';
     }
 
+    function ayahCountByNumber(num) {
+      const s = (state.surahList || []).find((x) => x.number === num);
+      return s ? Number(s.ayahCount) || 0 : 0;
+    }
+
     function updatePlayPauseIcons(playing) {
       const icon = playing
         ? '<svg><use href="#icon-pause"></use></svg>'
@@ -1046,22 +1064,44 @@
       if (barPlayBtn) barPlayBtn.innerHTML = playing ? icon : icon;
       if (overlayPlayBtn) overlayPlayBtn.innerHTML = icon;
       if (overlayDisc) overlayDisc.classList.toggle('spinning', playing);
+      if (barMiniDisc) barMiniDisc.classList.toggle('spinning', playing);
     }
 
     function syncNowPlayingUI() {
       const num = state.surahAudioSurah;
-      const name = num ? `سورة ${surahNameByNumber(num)}` : 'اختر سورة لتبدأ الاستماع';
+      const mode = state.playerMode;
       const ed = state.surahAudioReciter || getSelectedReciter();
-      if (barTitleEl) barTitleEl.textContent = num ? `سورة ${surahNameByNumber(num)}` : '--';
-      if (barReciterEl) barReciterEl.textContent = reciterName(ed);
-      if (overlayTitleEl) overlayTitleEl.textContent = name;
+
+      let barTitle = '--';
+      let overlayTitle = 'اختر سورة لتبدأ الاستماع';
+      if (num && mode === 'ayah') {
+        barTitle = `سورة ${surahNameByNumber(num)} — آية ${toArabicDigits(state.ayahPlayerAyahNum || 1)}`;
+        overlayTitle = barTitle;
+      } else if (num) {
+        barTitle = `سورة ${surahNameByNumber(num)}`;
+        overlayTitle = barTitle;
+      }
+
+      if (barTitleEl) barTitleEl.textContent = barTitle;
+      if (barReciterEl) barReciterEl.textContent = num ? reciterName(ed) : '--';
+      if (overlayTitleEl) overlayTitleEl.textContent = overlayTitle;
       if (overlayReciterEl) overlayReciterEl.textContent = num ? reciterName(ed) : '--';
 
       $$('.surah-item.player-playing', $('#player-surah-list')).forEach((el) => el.classList.remove('player-playing'));
-      if (num) {
+      if (num && mode !== 'ayah') {
         const activeItem = $(`.surah-item[data-num="${num}"]`, $('#player-surah-list'));
         if (activeItem) activeItem.classList.add('player-playing');
       }
+    }
+
+    function showBar() {
+      bar.classList.remove('hidden', 'bar-minimized');
+      if (showBarFab) showBarFab.classList.add('hidden');
+    }
+
+    function minimizeBar() {
+      bar.classList.add('bar-minimized');
+      if (showBarFab) showBarFab.classList.remove('hidden');
     }
 
     function stopAudio() {
@@ -1071,7 +1111,11 @@
       }
       state.surahAudioSurah = null;
       state.surahAudioReciter = null;
+      state.playerMode = null;
+      state.ayahPlayerAyahNum = null;
       bar.classList.add('hidden');
+      bar.classList.remove('bar-minimized');
+      if (showBarFab) showBarFab.classList.add('hidden');
       if (headerBtn) headerBtn.classList.remove('active');
       updatePlayPauseIcons(false);
       syncNowPlayingUI();
@@ -1087,11 +1131,13 @@
       if (state.surahAudioEl) { state.surahAudioEl.pause(); }
 
       const ed = getSelectedReciter();
+      state.playerMode = 'surah';
+      state.ayahPlayerAyahNum = null;
       state.surahAudioSurah = surahNumber;
       state.surahAudioReciter = ed;
       state.surahAudioEl = new Audio(QuranAPI.getSurahAudioURL(surahNumber, ed));
 
-      bar.classList.remove('hidden');
+      showBar();
       if (headerBtn) headerBtn.classList.add('active');
       syncNowPlayingUI();
 
@@ -1126,6 +1172,88 @@
       });
     }
 
+    /* -------- وضع الاستماع المتواصل من آية معينة، آية بعد آية بلا توقف -------- */
+    async function ensureSurahListLoaded() {
+      if (!state.surahList || !state.surahList.length) {
+        await loadSurahIndex();
+      }
+    }
+
+    async function playAyahContinuous(surahNumber, ayahNumber) {
+      await ensureSurahListLoaded();
+
+      // إيقاف أي صوت آخر شغال حاليًا تجنبًا للتداخل
+      if (state.audioEl) { state.audioEl.pause(); }
+      if (state.surahAudioEl) { state.surahAudioEl.pause(); state.surahAudioEl = null; }
+
+      const ed = getSelectedReciter();
+      state.playerMode = 'ayah';
+      state.surahAudioSurah = surahNumber;
+      state.surahAudioReciter = ed;
+      state.ayahPlayerAyahNum = ayahNumber;
+
+      showBar();
+      if (headerBtn) headerBtn.classList.add('active');
+      syncNowPlayingUI();
+      if (barPlayBtn) barPlayBtn.innerHTML = '⏳';
+
+      try {
+        const url = await QuranAPI.getAyahAudio(surahNumber, ayahNumber, ed);
+        // قد يكون المستخدم غيّر الوضع أثناء الانتظار (مثلاً ضغط إيقاف)
+        if (state.playerMode !== 'ayah' || state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
+
+        state.surahAudioEl = new Audio(url);
+        syncNowPlayingUI();
+
+        state.surahAudioEl.addEventListener('loadedmetadata', () => {
+          const dur = Math.floor(state.surahAudioEl.duration) || 0;
+          if (barSeek) barSeek.max = dur;
+          if (overlaySeek) overlaySeek.max = dur;
+          if (overlayDurationTime) overlayDurationTime.textContent = formatPlayerTime(dur);
+        });
+        state.surahAudioEl.addEventListener('timeupdate', () => {
+          if (!state.surahAudioEl) return;
+          const cur = Math.floor(state.surahAudioEl.currentTime);
+          if (barSeek) barSeek.value = cur;
+          if (overlaySeek) overlaySeek.value = cur;
+          if (overlayCurrentTime) overlayCurrentTime.textContent = formatPlayerTime(cur);
+        });
+        state.surahAudioEl.addEventListener('ended', () => {
+          const count = ayahCountByNumber(surahNumber);
+          let nextSurah = surahNumber;
+          let nextAyah = ayahNumber + 1;
+          if (count && nextAyah > count) {
+            nextSurah = surahNumber >= 114 ? 1 : surahNumber + 1;
+            nextAyah = 1;
+          }
+          playAyahContinuous(nextSurah, nextAyah);
+        });
+
+        await state.surahAudioEl.play();
+        updatePlayPauseIcons(true);
+      } catch (e) {
+        showToast('تعذّر تشغيل الصوت، تحقّق من الاتصال بالإنترنت');
+        stopAudio();
+      }
+    }
+
+    function playAdjacentAyah(delta) {
+      const surahNumber = state.surahAudioSurah;
+      const ayahNumber = state.ayahPlayerAyahNum;
+      if (!surahNumber || !ayahNumber) return;
+      const count = ayahCountByNumber(surahNumber);
+      let nextSurah = surahNumber;
+      let nextAyah = ayahNumber + delta;
+      if (nextAyah < 1) {
+        nextSurah = surahNumber <= 1 ? 114 : surahNumber - 1;
+        nextAyah = ayahCountByNumber(nextSurah) || 1;
+      } else if (count && nextAyah > count) {
+        nextSurah = surahNumber >= 114 ? 1 : surahNumber + 1;
+        nextAyah = 1;
+      }
+      playAyahContinuous(nextSurah, nextAyah);
+    }
+
     function togglePlayPause() {
       if (!state.surahAudioEl) return;
       if (state.surahAudioEl.paused) {
@@ -1145,8 +1273,20 @@
       playSurah(next);
     }
 
-    // تعريض الدوال لبقية التطبيق (نافذة اختيار السور وزر الرئيسية)
-    window.__playerControls = { playSurah, togglePlayPause, stopAudio, playAdjacentSurah, syncNowPlayingUI };
+    function goNextTransport() {
+      if (state.playerMode === 'ayah') playAdjacentAyah(1);
+      else playAdjacentSurah(1);
+    }
+    function goPrevTransport() {
+      if (state.playerMode === 'ayah') playAdjacentAyah(-1);
+      else playAdjacentSurah(-1);
+    }
+
+    // تعريض الدوال لبقية التطبيق (نافذة اختيار السور وزر الرئيسية وقائمة خيارات الآية)
+    window.__playerControls = {
+      playSurah, togglePlayPause, stopAudio, playAdjacentSurah, syncNowPlayingUI,
+      playAyahContinuous, playAdjacentAyah
+    };
 
     if (headerBtn) {
       headerBtn.addEventListener('click', () => {
@@ -1163,12 +1303,16 @@
 
     if (barPlayBtn) barPlayBtn.addEventListener('click', togglePlayPause);
     if (overlayPlayBtn) overlayPlayBtn.addEventListener('click', togglePlayPause);
-    if (barPrevBtn) barPrevBtn.addEventListener('click', () => playAdjacentSurah(-1));
-    if (barNextBtn) barNextBtn.addEventListener('click', () => playAdjacentSurah(1));
-    if (overlayPrevBtn) overlayPrevBtn.addEventListener('click', () => playAdjacentSurah(-1));
-    if (overlayNextBtn) overlayNextBtn.addEventListener('click', () => playAdjacentSurah(1));
+    if (barPrevBtn) barPrevBtn.addEventListener('click', goPrevTransport);
+    if (barNextBtn) barNextBtn.addEventListener('click', goNextTransport);
+    if (overlayPrevBtn) overlayPrevBtn.addEventListener('click', goPrevTransport);
+    if (overlayNextBtn) overlayNextBtn.addEventListener('click', goNextTransport);
     if (barCloseBtn) barCloseBtn.addEventListener('click', stopAudio);
     if (barExpandBtn) barExpandBtn.addEventListener('click', openPlayerOverlay);
+
+    // إخفاء الشريط مؤقتًا أثناء القراءة، وإظهاره من الزرار العائم فقط
+    if (barHideBtn) barHideBtn.addEventListener('click', minimizeBar);
+    if (showBarFab) showBarFab.addEventListener('click', showBar);
 
     if (barSeek) {
       barSeek.addEventListener('input', () => {
@@ -1188,10 +1332,12 @@
       });
     }
 
-    // تغيير القارئ أثناء التشغيل: أعد تحميل نفس السورة فورًا بصوت القارئ الجديد
+    // تغيير القارئ أثناء التشغيل: أعد تحميل نفس السورة أو نفس الآية فورًا بصوت القارئ الجديد
     document.addEventListener('reciter-changed', () => {
       $$('.reciter-choice').forEach((b) => b.classList.toggle('active', b.dataset.reciter === getSelectedReciter()));
-      if (state.surahAudioSurah) {
+      if (state.playerMode === 'ayah' && state.surahAudioSurah && state.ayahPlayerAyahNum) {
+        playAyahContinuous(state.surahAudioSurah, state.ayahPlayerAyahNum);
+      } else if (state.surahAudioSurah) {
         playSurah(state.surahAudioSurah);
       } else {
         syncNowPlayingUI();
@@ -1946,7 +2092,7 @@
     kahf: { enabled: false, time: '08:00', lastSent: '' },
     wird: { enabled: false, time: '21:00', lastSent: '' },
     naom: { enabled: false, time: '22:00', lastSent: '' },
-    mayyit4h: { enabled: false, lastSentAt: 0 },
+    mayyit4h: { enabled: false, intervalMinutes: 240, lastSentAt: 0 },
     prayers: { enabled: false, lastSent: {} }
   };
 
@@ -2015,10 +2161,10 @@
       changed = true;
     }
 
-    // دعاء للفقيد كل 4 ساعات (تحقّق محلي بسيط أثناء فتح التطبيق فقط؛ التكرار الحقيقي الدقيق يديره خادم الـ Push)
+    // دعاء للفقيد بالفترة التي حددها المستخدم (تحقّق محلي بسيط أثناء فتح التطبيق فقط؛ التكرار الحقيقي الدقيق يديره خادم الـ Push)
     if (settings.mayyit4h && settings.mayyit4h.enabled) {
-      const FOUR_HOURS = 4 * 60 * 60 * 1000;
-      if (!settings.mayyit4h.lastSentAt || Date.now() - settings.mayyit4h.lastSentAt >= FOUR_HOURS) {
+      const intervalMs = (Number(settings.mayyit4h.intervalMinutes) > 0 ? Number(settings.mayyit4h.intervalMinutes) : 240) * 60 * 1000;
+      if (!settings.mayyit4h.lastSentAt || Date.now() - settings.mayyit4h.lastSentAt >= intervalMs) {
         sendNotification('دعاء للفقيد 🕊️', 'اللهم اغفر لأشرف أحمد جاهين وارحمه وأسكنه فسيح جناتك — قل: اللهم اغفر له وارحمه.');
         settings.mayyit4h.lastSentAt = Date.now();
         changed = true;
@@ -2160,23 +2306,62 @@
         };
       });
 
-    // دعاء للفقيد كل 4 ساعات: مفتاح تفعيل فقط بلا وقت يدوي
+    // دعاء للفقيد: مفتاح تفعيل + فترة تكرار يحددها المستخدم بنفسه (بالدقائق أو الساعات)
     const mayyitToggle = $('#toggle-mayyit4h');
+    const mayyitValueInput = $('#mayyit-interval-value');
+    const mayyitUnitSelect = $('#mayyit-interval-unit');
     if (mayyitToggle) {
-      if (!settings.mayyit4h) settings.mayyit4h = { enabled: false, lastSentAt: 0 };
+      if (!settings.mayyit4h) settings.mayyit4h = { enabled: false, intervalMinutes: 240, lastSentAt: 0 };
+      if (!settings.mayyit4h.intervalMinutes) settings.mayyit4h.intervalMinutes = 240;
+
       mayyitToggle.checked = !!settings.mayyit4h.enabled;
       mayyitToggle.disabled = !permGranted;
 
+      // عرض الفترة المحفوظة بأنسب وحدة (ساعات لو قابلة للقسمة بالتمام، وإلا دقائق)
+      if (mayyitValueInput && mayyitUnitSelect) {
+        const savedMin = settings.mayyit4h.intervalMinutes;
+        if (savedMin % 60 === 0) {
+          mayyitUnitSelect.value = 'hours';
+          mayyitValueInput.value = savedMin / 60;
+        } else {
+          mayyitUnitSelect.value = 'minutes';
+          mayyitValueInput.value = savedMin;
+        }
+        mayyitValueInput.disabled = !permGranted;
+        mayyitUnitSelect.disabled = !permGranted;
+      }
+
+      function currentIntervalMinutes() {
+        const raw = Math.max(1, Number(mayyitValueInput.value) || 1);
+        return mayyitUnitSelect.value === 'hours' ? raw * 60 : raw;
+      }
+
       mayyitToggle.onchange = () => {
         const s = getReminderSettings();
-        if (!s.mayyit4h) s.mayyit4h = { enabled: false, lastSentAt: 0 };
+        if (!s.mayyit4h) s.mayyit4h = { enabled: false, intervalMinutes: 240, lastSentAt: 0 };
         s.mayyit4h.enabled = mayyitToggle.checked;
-        if (mayyitToggle.checked) s.mayyit4h.lastSentAt = Date.now(); // أول تذكير بعد 4 ساعات من التفعيل
+        if (mayyitToggle.checked) s.mayyit4h.lastSentAt = Date.now(); // أول تذكير بعد فترة كاملة من التفعيل
         saveReminderSettings(s);
         checkReminders();
         syncPushSubscription();
-        if (mayyitToggle.checked) showToast('تم تفعيل الدعاء الدوري للفقيد كل ٤ ساعات 🕊️');
+        if (mayyitToggle.checked) {
+          const unitLabel = mayyitUnitSelect && mayyitUnitSelect.value === 'hours' ? 'ساعة' : 'دقيقة';
+          showToast(`تم تفعيل الدعاء الدوري للفقيد كل ${toArabicDigits(mayyitValueInput ? mayyitValueInput.value : 4)} ${unitLabel} 🕊️`);
+        }
       };
+
+      if (mayyitValueInput && mayyitUnitSelect) {
+        const onIntervalChange = () => {
+          const s = getReminderSettings();
+          if (!s.mayyit4h) s.mayyit4h = { enabled: false, intervalMinutes: 240, lastSentAt: 0 };
+          s.mayyit4h.intervalMinutes = currentIntervalMinutes();
+          s.mayyit4h.lastSentAt = Date.now(); // إعادة ضبط العد التنازلي من الآن بالفترة الجديدة
+          saveReminderSettings(s);
+          syncPushSubscription();
+        };
+        mayyitValueInput.addEventListener('change', onIntervalChange);
+        mayyitUnitSelect.addEventListener('change', onIntervalChange);
+      }
     }
 
     // تذكير مواقيت الصلاة الخمس: مفتاح تفعيل فقط بلا وقت يدوي (يعتمد على المواقيت المجلوبة تلقائيًا)
@@ -2265,7 +2450,10 @@
               kahf: settings.kahf,
               wird: settings.wird,
               naom: settings.naom,
-              mayyit4h: { enabled: !!(settings.mayyit4h && settings.mayyit4h.enabled) },
+              mayyit4h: {
+                enabled: !!(settings.mayyit4h && settings.mayyit4h.enabled),
+                intervalMinutes: (settings.mayyit4h && Number(settings.mayyit4h.intervalMinutes) > 0) ? Number(settings.mayyit4h.intervalMinutes) : 240
+              },
               prayers: { enabled: !!(settings.prayers && settings.prayers.enabled) }
             }
           })

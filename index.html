@@ -401,6 +401,10 @@
         <span class="opt-icon"><svg><use href="#icon-play"></use></svg></span>
         <span>استماع الآية</span>
       </button>
+      <button class="option-btn" data-panel="play-from-here" id="btn-ayah-play-from-here">
+        <span class="opt-icon">🎧</span>
+        <span>ابدأ الاستماع من هنا</span>
+      </button>
       <button class="option-btn" data-panel="bookmark" id="btn-ayah-bookmark">
         <span class="opt-icon"><svg><use href="#icon-bookmark"></use></svg></span>
         <span>حفظ كعلامة</span>
@@ -541,15 +545,22 @@
           </div>
         </div>
 
-        <div class="settings-card-row" data-reminder-row="mayyit4h">
+        <div class="settings-card-row mayyit-row" data-reminder-row="mayyit4h">
           <div class="settings-card-label">
             <span class="settings-card-icon">🕊️</span>
             <div class="settings-card-text">
               <span class="settings-card-title">دعاء للفقيد أشرف أحمد جاهين</span>
-              <span class="settings-card-sub">تذكير متكرر كل ٤ ساعات بالدعاء له رحمه الله</span>
+              <span class="settings-card-sub">تذكير متكرر بالدعاء له رحمه الله — حدّد كل قد إيه</span>
             </div>
           </div>
           <div class="settings-control">
+            <div class="interval-control">
+              <input type="number" id="mayyit-interval-value" class="interval-num-input" min="1" max="999" value="4" inputmode="numeric">
+              <select id="mayyit-interval-unit" class="interval-unit-select">
+                <option value="hours">ساعة</option>
+                <option value="minutes">دقيقة</option>
+              </select>
+            </div>
             <label class="switch">
               <input type="checkbox" id="toggle-mayyit4h">
               <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -721,20 +732,26 @@
 <!-- شريط تشغيل تلاوة السورة كاملة (مشغّل مصغّر) -->
 <div id="surah-audio-bar" class="surah-audio-bar hidden">
   <div class="surah-audio-top">
+    <div class="surah-audio-disc" id="surah-audio-mini-disc">
+      <svg><use href="#icon-headphones"></use></svg>
+    </div>
     <button class="surah-audio-tap-area" id="surah-audio-expand" aria-label="فتح المشغّل الكامل">
       <div class="surah-audio-info">
         <span id="surah-audio-title">--</span>
         <span id="surah-audio-reciter" class="surah-audio-reciter">--</span>
       </div>
     </button>
-    <button id="surah-audio-prev" class="icon-btn" aria-label="السورة السابقة">
+    <button id="surah-audio-prev" class="icon-btn" aria-label="السابق">
       <svg><use href="#icon-skip-back"></use></svg>
     </button>
     <button id="surah-audio-playpause" class="surah-audio-playpause" aria-label="تشغيل/إيقاف">
       <svg><use href="#icon-play"></use></svg>
     </button>
-    <button id="surah-audio-next" class="icon-btn" aria-label="السورة التالية">
+    <button id="surah-audio-next" class="icon-btn" aria-label="التالي">
       <svg><use href="#icon-skip-forward"></use></svg>
+    </button>
+    <button id="surah-audio-hide" class="icon-btn" aria-label="إخفاء الشريط">
+      <svg><use href="#icon-chevron-down"></use></svg>
     </button>
     <button id="surah-audio-close" class="icon-btn" aria-label="إغلاق المشغّل">
       <svg><use href="#icon-close"></use></svg>
@@ -742,6 +759,11 @@
   </div>
   <input type="range" id="surah-audio-seek" class="surah-audio-seek" min="0" max="100" value="0">
 </div>
+
+<!-- زرار عائم صغير لإرجاع شريط المشغّل بعد إخفائه -->
+<button id="btn-show-player-bar" class="show-player-fab hidden" aria-label="إظهار المشغّل">
+  <svg><use href="#icon-headphones"></use></svg>
+</button>
 
 <!-- شريط الدعاء للصدقة الجارية -->
 <div id="dua-banner" class="dua-banner">

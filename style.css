@@ -937,6 +937,11 @@ body.theme-night .surah-item-name { color: var(--gold-soft); }
 .option-btn .opt-icon svg { width: 18px; height: 18px; }
 .option-btn.active { background: var(--emerald); color: var(--gold-soft); border-color: var(--gold); }
 .option-btn.active .opt-icon { color: var(--gold-soft); }
+#btn-ayah-play-from-here {
+  background: linear-gradient(160deg, var(--paper-deep), var(--paper));
+  border-color: var(--gold);
+}
+#btn-ayah-play-from-here .opt-icon { font-size: 17px; }
 
 .panel-content {
   max-height: 0;
@@ -1067,6 +1072,31 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
 }
 .time-input:disabled { opacity: .45; }
 
+/* تحكم فترة تذكير الدعاء للفقيد (رقم + وحدة) */
+.mayyit-row .settings-control { flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.interval-control { display: flex; align-items: center; gap: 6px; }
+.interval-num-input {
+  width: 52px;
+  padding: 6px 6px;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid var(--paper-line);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.interval-unit-select {
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--paper-line);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.interval-num-input:disabled, .interval-unit-select:disabled { opacity: .45; }
+
 .switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
 .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .switch-track {
@@ -1157,7 +1187,7 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
 }
 .reciter-choices .chip-btn { font-size: 12.5px; }
 
-/* -------- شريط تشغيل السورة كاملة -------- */
+/* -------- شريط تشغيل السورة كاملة / الاستماع المتواصل بالآيات -------- */
 .surah-audio-bar {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom) + 96px);
@@ -1165,17 +1195,18 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
   transform: translateX(-50%);
   width: calc(100% - 24px);
   max-width: 530px;
-  background: rgba(15, 23, 21, 0.94);
-  border: 1px solid var(--gold);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: var(--radius-md);
-  padding: 10px 14px 12px;
+  background: linear-gradient(165deg, rgba(13, 66, 52, .92), rgba(6, 41, 31, .96));
+  border: 1px solid rgba(234, 201, 108, .35);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border-radius: 20px;
+  padding: 12px 14px 13px;
   z-index: 98;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(234,201,108,.05) inset;
+  transition: opacity .3s ease, transform .3s ease;
 }
-.surah-audio-bar.hidden {
+.surah-audio-bar.hidden,
+.surah-audio-bar.bar-minimized {
   opacity: 0;
   transform: translate(-50%, 20px);
   pointer-events: none;
@@ -1185,6 +1216,17 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
   align-items: center;
   gap: 10px;
 }
+.surah-audio-disc {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold-deep));
+  color: var(--emerald);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.surah-audio-disc svg { width: 17px; height: 17px; }
+.surah-audio-disc.spinning { animation: player-disc-spin 6s linear infinite; }
 .surah-audio-info {
   flex: 1;
   min-width: 0;
@@ -1192,23 +1234,50 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
   flex-direction: column;
   color: var(--gold-soft);
 }
-.surah-audio-info span:first-child { font-family: var(--font-display); font-size: 15px; }
-.surah-audio-reciter { font-size: 11px; color: rgba(234,201,108,.7); }
+.surah-audio-info span:first-child {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.surah-audio-reciter { font-size: 11px; color: rgba(234,201,108,.65); }
 .surah-audio-playpause {
-  width: 34px; height: 34px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--gold);
+  background: linear-gradient(150deg, var(--gold-bright), var(--gold));
   color: var(--emerald);
   flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(201,162,39,.35);
 }
 .surah-audio-playpause svg { width: 16px; height: 16px; }
-.surah-audio-bar .icon-btn { width: 30px; height: 30px; color: var(--gold-soft); }
+.surah-audio-bar .icon-btn { width: 28px; height: 28px; color: rgba(234,201,108,.85); }
+.surah-audio-bar .icon-btn:hover, .surah-audio-bar .icon-btn:active { background: rgba(234,201,108,.14); }
 .surah-audio-seek {
   width: 100%;
-  margin-top: 8px;
-  accent-color: var(--gold);
+  height: 3px;
+  margin-top: 9px;
+  accent-color: var(--gold-bright);
 }
+
+/* زرار عائم لإظهار المشغّل بعد إخفائه أثناء القراءة */
+.show-player-fab {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  left: 16px;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, var(--gold-bright), var(--gold-deep));
+  color: var(--emerald);
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  z-index: 97;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.show-player-fab svg { width: 21px; height: 21px; }
+.show-player-fab.hidden { opacity: 0; transform: scale(.6); pointer-events: none; }
+.show-player-fab:active { transform: scale(.92); }
 
 /* -------- بوصلة اتجاه القبلة -------- */
 .qibla-card {
