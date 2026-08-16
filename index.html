@@ -73,6 +73,13 @@
     </symbol>
     <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z"/></symbol>
     <symbol id="icon-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></symbol>
+    <symbol id="icon-speaker" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" d="M4 9v6h4l5 4V5L8 9H4z"/>
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/>
+    </symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M12 3l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 18l-6.1 3.5 1.5-6.8L2.2 10l6.9-.7L12 3z"/>
+    </symbol>
     <symbol id="icon-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></symbol>
     <symbol id="icon-chevron-down" viewBox="0 0 24 24">
       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 9l7 7 7-7"/>
@@ -88,6 +95,20 @@
       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 1 1 3 6.7"/>
       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 21v-6h6"/>
     </symbol>
+    <symbol id="icon-skip-back" viewBox="0 0 24 24">
+      <path d="M18 5v14l-11-7z"/><rect x="5" y="5" width="2.4" height="14"/>
+    </symbol>
+    <symbol id="icon-skip-forward" viewBox="0 0 24 24">
+      <path d="M6 5v14l11-7z"/><rect x="16.6" y="5" width="2.4" height="14"/>
+    </symbol>
+    <symbol id="icon-headphones" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 14v-2a8 8 0 0116 0v2"/>
+      <rect x="3" y="14" width="4.5" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <rect x="16.5" y="14" width="4.5" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="icon-chart" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -100,6 +121,9 @@
     <svg><use href="#icon-menu-dots"></use></svg>
   </button>
   <div class="header-side header-left">
+    <button class="header-mini-btn" id="btn-header-surah-audio" aria-label="فتح المشغّل الصوتي">
+      <svg><use href="#icon-speaker"></use></svg>
+    </button>
     <button class="header-mini-btn" id="btn-header-bookmark" aria-label="آخر قراءة">
       <svg><use href="#icon-bookmark"></use></svg>
     </button>
@@ -109,6 +133,65 @@
 
 <!-- ===== المحتوى الرئيسي ===== -->
 <main id="app-main">
+
+  <!-- تبويب الرئيسية -->
+  <section id="view-home" class="view">
+    <div class="list-page home-page">
+      <div class="home-welcome">
+        <svg class="home-welcome-emblem"><use href="#emblem-star"></use></svg>
+        <h2 class="home-welcome-title">ختمتي والملخص</h2>
+        <p class="home-welcome-sub">تابع ورّدك اليومي وختمتك، ثم عد للمصحف لتكمل القراءة</p>
+      </div>
+
+      <!-- ختمة القرآن والورد اليومي -->
+      <div class="home-khatma-card">
+        <h3 class="home-card-title"><span class="opt-icon">📖</span> ختمة القرآن — الورد اليومي</h3>
+        <div class="khatma-progress-wrap">
+          <div class="offline-progress-bar"><div id="khatma-progress-fill" class="offline-progress-fill"></div></div>
+          <p id="khatma-progress-text" class="settings-mini-note">لم تبدأ ختمة بعد</p>
+        </div>
+
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">📅</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">الورد اليومي (عدد الصفحات)</span>
+              <span class="settings-card-sub">كل صفحة تفتحها تُسجَّل تلقائيًا كمقروءة اليوم</span>
+            </div>
+          </div>
+          <input type="number" id="khatma-daily-target" class="time-input" min="1" max="604" value="4" style="width:60px;">
+        </div>
+
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🔄</span>
+            <div class="settings-card-text"><span class="settings-card-title">بدء ختمة جديدة</span></div>
+          </div>
+          <button id="btn-khatma-restart" class="chip-btn">ابدأ من جديد</button>
+        </div>
+      </div>
+
+      <!-- اختصارات سريعة -->
+      <div class="home-quick-grid">
+        <button class="home-quick-btn" id="btn-home-continue">
+          <span class="nav-item-icon"><svg><use href="#icon-bookmark"></use></svg></span>
+          <span>متابعة القراءة</span>
+        </button>
+        <button class="home-quick-btn" id="btn-home-player">
+          <span class="nav-item-icon"><svg><use href="#icon-headphones"></use></svg></span>
+          <span>المشغّل الصوتي</span>
+        </button>
+        <button class="home-quick-btn" data-tab="azkar">
+          <span class="nav-item-icon"><svg><use href="#icon-beads"></use></svg></span>
+          <span>الأذكار</span>
+        </button>
+        <button class="home-quick-btn" data-tab="prayer">
+          <span class="nav-item-icon"><svg><use href="#icon-mosque"></use></svg></span>
+          <span>مواقيت الصلاة</span>
+        </button>
+      </div>
+    </div>
+  </section>
 
   <!-- تبويب القرآن -->
   <section id="view-quran" class="view active">
@@ -175,6 +258,34 @@
         <div class="p-card" data-p="Maghrib"><span class="p-name">المغرب</span><span class="p-time">--:--</span></div>
         <div class="p-card" data-p="Isha"><span class="p-name">العشاء</span><span class="p-time">--:--</span></div>
       </div>
+
+      <!-- كارت اتجاه القبلة -->
+      <div class="qibla-card">
+        <h3 class="qibla-title">🕋 اتجاه القبلة</h3>
+        <div class="qibla-compass-wrap">
+          <div class="qibla-fixed-pointer">▲</div>
+          <div id="qibla-ring" class="qibla-ring">
+            <span class="cardinal n">ش</span>
+            <span class="cardinal e">ق</span>
+            <span class="cardinal s">ج</span>
+            <span class="cardinal w">غ</span>
+            <div id="qibla-pin-rotator" class="qibla-pin-rotator">
+              <span class="qibla-pin">🕋</span>
+            </div>
+          </div>
+        </div>
+        <p id="qibla-status" class="qibla-status">جارٍ تحديد موقعك لحساب اتجاه القبلة...</p>
+        <button id="btn-enable-qibla" class="chip-btn hidden">تفعيل البوصلة</button>
+        <p class="settings-mini-note">البوصلة تقريبية وقد تتأثر بمجالات مغناطيسية قريبة (معادن، أجهزة)؛ حرّك الهاتف على شكل ٨ لمعايرتها إذا بدت غير دقيقة.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- تبويب المفضلة -->
+  <section id="view-favorites" class="view">
+    <div class="list-page">
+      <h2 class="list-title">المفضلة ⭐</h2>
+      <div id="favorites-list"></div>
     </div>
   </section>
 
@@ -189,6 +300,10 @@
       <button class="icon-btn" id="btn-close-nav" aria-label="إغلاق القائمة"><svg><use href="#icon-close"></use></svg></button>
     </div>
     <div class="nav-grid">
+      <button class="nav-item" data-tab="home">
+        <span class="nav-item-icon"><svg><use href="#icon-star"></use></svg></span>
+        <span>ختمتي والملخص</span>
+      </button>
       <button class="nav-item active" data-tab="quran">
         <span class="nav-item-icon"><svg><use href="#icon-book"></use></svg></span>
         <span>القرآن الكريم</span>
@@ -204,6 +319,14 @@
       <button class="nav-item" data-tab="prayer">
         <span class="nav-item-icon"><svg><use href="#icon-mosque"></use></svg></span>
         <span>مواقيت الصلاة</span>
+      </button>
+      <button class="nav-item" data-tab="favorites">
+        <span class="nav-item-icon"><svg><use href="#icon-star"></use></svg></span>
+        <span>المفضلة</span>
+      </button>
+      <button class="nav-item" data-action="player">
+        <span class="nav-item-icon"><svg><use href="#icon-headphones"></use></svg></span>
+        <span>المشغّل الصوتي</span>
       </button>
       <button class="nav-item" data-action="index">
         <span class="nav-item-icon"><svg><use href="#icon-book"></use></svg></span>
@@ -477,8 +600,97 @@
       </div>
     </div>
 
+    <!-- اختيار القارئ الافتراضي -->
+    <div class="settings-section">
+      <h4 class="settings-section-title">القارئ الافتراضي</h4>
+      <div class="settings-card">
+        <p class="settings-mini-note">يُستخدم هذا القارئ في استماع الآية المفردة، ويمكنك اختيار قارئ مختلف لكل سورة من المشغّل الصوتي 🎧 (في القائمة الرئيسية).</p>
+        <div id="reciter-choices" class="reciter-choices"></div>
+      </div>
+    </div>
+
+    <p class="settings-note">ختمة القرآن والورد اليومي أصبحا في الصفحة الرئيسية للتطبيق، وليس هنا.</p>
     <p class="settings-note">تعمل بيانات القرآن والتفسير ومعاني الكلمات عبر الإنترنت من مصادر إسلامية موثوقة، وتُحفظ نسخة مؤقتة منها للقراءة لاحقًا بلا اتصال.</p>
   </div>
+</div>
+
+<!-- ===== المشغّل الصوتي الكامل ===== -->
+<div id="player-overlay" class="overlay">
+  <div class="overlay-sheet player-sheet">
+    <div class="overlay-head">
+      <h3>المشغّل الصوتي</h3>
+      <button class="icon-btn" id="btn-close-player" aria-label="إغلاق المشغّل"><svg><use href="#icon-close"></use></svg></button>
+    </div>
+
+    <!-- بطاقة "الآن يُشغَّل" -->
+    <div class="player-now-card">
+      <div class="player-disc" id="player-disc">
+        <svg class="player-disc-icon"><use href="#icon-book"></use></svg>
+      </div>
+      <h4 id="player-surah-title" class="player-surah-title">اختر سورة لتبدأ الاستماع</h4>
+      <span id="player-reciter-name" class="player-reciter-name">--</span>
+
+      <div class="player-seek-row">
+        <span id="player-time-current" class="player-time">٠:٠٠</span>
+        <input type="range" id="player-seek" class="player-seek" min="0" max="100" value="0">
+        <span id="player-time-duration" class="player-time">٠:٠٠</span>
+      </div>
+
+      <div class="player-transport">
+        <button class="player-transport-btn" id="player-btn-prev" aria-label="السورة السابقة">
+          <svg><use href="#icon-skip-back"></use></svg>
+        </button>
+        <button class="player-transport-btn player-transport-main" id="player-btn-playpause" aria-label="تشغيل/إيقاف">
+          <svg><use href="#icon-play"></use></svg>
+        </button>
+        <button class="player-transport-btn" id="player-btn-next" aria-label="السورة التالية">
+          <svg><use href="#icon-skip-forward"></use></svg>
+        </button>
+      </div>
+
+      <label class="player-continuous-row">
+        <span>تشغيل متتابع للسور التالية (للاستماع أثناء الختمة)</span>
+        <span class="switch">
+          <input type="checkbox" id="player-continuous-toggle" checked>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </span>
+      </label>
+    </div>
+
+    <!-- اختيار القارئ -->
+    <h4 class="player-section-title">القارئ</h4>
+    <div id="player-reciter-choices" class="reciter-choices"></div>
+
+    <!-- اختيار السورة -->
+    <h4 class="player-section-title">اختر سورة</h4>
+    <input type="text" id="player-surah-search" class="text-input" placeholder="ابحث باسم السورة...">
+    <div id="player-surah-list" class="surah-list player-surah-list"></div>
+  </div>
+</div>
+
+<!-- شريط تشغيل تلاوة السورة كاملة (مشغّل مصغّر) -->
+<div id="surah-audio-bar" class="surah-audio-bar hidden">
+  <div class="surah-audio-top">
+    <button class="surah-audio-tap-area" id="surah-audio-expand" aria-label="فتح المشغّل الكامل">
+      <div class="surah-audio-info">
+        <span id="surah-audio-title">--</span>
+        <span id="surah-audio-reciter" class="surah-audio-reciter">--</span>
+      </div>
+    </button>
+    <button id="surah-audio-prev" class="icon-btn" aria-label="السورة السابقة">
+      <svg><use href="#icon-skip-back"></use></svg>
+    </button>
+    <button id="surah-audio-playpause" class="surah-audio-playpause" aria-label="تشغيل/إيقاف">
+      <svg><use href="#icon-play"></use></svg>
+    </button>
+    <button id="surah-audio-next" class="icon-btn" aria-label="السورة التالية">
+      <svg><use href="#icon-skip-forward"></use></svg>
+    </button>
+    <button id="surah-audio-close" class="icon-btn" aria-label="إغلاق المشغّل">
+      <svg><use href="#icon-close"></use></svg>
+    </button>
+  </div>
+  <input type="range" id="surah-audio-seek" class="surah-audio-seek" min="0" max="100" value="0">
 </div>
 
 <!-- شريط الدعاء للصدقة الجارية -->

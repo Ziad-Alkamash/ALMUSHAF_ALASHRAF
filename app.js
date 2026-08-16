@@ -10,7 +10,10 @@
     currentPage: 1,
     currentPageData: null,
     activeAyah: null, // {surah, ayah, text, surahNameAr}
-    audioEl: null
+    audioEl: null,
+    surahAudioEl: null,
+    surahAudioSurah: null,
+    surahAudioReciter: null
   };
 
   /* ---------------------------------------------------------------- */
@@ -59,9 +62,16 @@
     } else {
       $('#header-juz').textContent = '';
       $('#header-context').textContent =
+        tab === 'home' ? 'ختمتي والملخص' :
         tab === 'azkar' ? 'الأذكار' :
-        tab === 'duas' ? 'الأدعية الصحيحة' : 'مواقيت الصلاة';
+        tab === 'duas' ? 'الأدعية الصحيحة' :
+        tab === 'favorites' ? 'المفضلة' : 'مواقيت الصلاة';
     }
+
+    const audioBtn = $('#btn-header-surah-audio');
+    if (audioBtn) audioBtn.classList.toggle('hidden', tab !== 'quran');
+
+    if (tab === 'favorites') renderFavoritesView();
   }
 
   function updateQuranHeaderInfo() {
@@ -93,6 +103,8 @@
           setTimeout(() => $('#surah-search').focus(), 260);
         } else if (action === 'settings') {
           openOverlay('#settings-overlay');
+        } else if (action === 'player') {
+          openPlayerOverlay();
         }
       });
     });
@@ -105,6 +117,21 @@
     if (headerContext) {
       headerContext.addEventListener('click', () => openOverlay('#index-overlay'));
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* تبويب الرئيسية: اختصارات سريعة                                    */
+  /* ---------------------------------------------------------------- */
+  function initHomeTab() {
+    $$('.home-quick-btn[data-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => switchToTab(btn.dataset.tab));
+    });
+
+    const continueBtn = $('#btn-home-continue');
+    if (continueBtn) continueBtn.addEventListener('click', () => switchToTab('quran'));
+
+    const playerBtn = $('#btn-home-player');
+    if (playerBtn) playerBtn.addEventListener('click', () => openPlayerOverlay());
   }
 
   /* ---------------------------------------------------------------- */
@@ -311,6 +338,7 @@
       state.currentPage = pageNumber;
       state.currentPageData = pageData;
       localStorage.setItem('almus-hraf:currentPage', String(pageNumber));
+      recordKhatmaPageRead(pageNumber);
 
       const cleanHeaderName = cleanSurahName(pageData.headerSurahName);
       $('#surah-name-ar').textContent = `سورة ${cleanHeaderName}`;
@@ -886,6 +914,11 @@
       .replaceAll('>', '&gt;');
   }
 
+  const RECITER_KEY = 'almus-hraf:reciter';
+  function getSelectedReciter() {
+    return localStorage.getItem(RECITER_KEY) || 'ar.alafasy';
+  }
+
   async function toggleAyahAudio(btnEl) {
     const iconWrap = btnEl.querySelector('.opt-icon');
     if (state.audioEl && !state.audioEl.paused) {
@@ -894,10 +927,17 @@
       return;
     }
     try {
+      // إيقاف مشغّل السورة كاملة إن كان يعمل، تجنبًا لتداخل صوتين معًا
+      if (state.surahAudioEl && !state.surahAudioEl.paused) {
+        state.surahAudioEl.pause();
+        const surahPlayBtn = $('#surah-audio-playpause');
+        if (surahPlayBtn) surahPlayBtn.innerHTML = '<svg><use href="#icon-play"></use></svg>';
+      }
+
       if (!state.audioEl) {
         iconWrap.innerHTML = '⏳';
         const { surah, ayah } = state.activeAyah;
-        const url = await QuranAPI.getAyahAudio(surah, ayah);
+        const url = await QuranAPI.getAyahAudio(surah, ayah, getSelectedReciter());
         state.audioEl = new Audio(url);
         state.audioEl.addEventListener('ended', () => {
           iconWrap.innerHTML = '<svg><use href="#icon-play"></use></svg>';
@@ -912,9 +952,304 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* المشغّل الصوتي الكامل: اختيار أي سورة وأي قارئ، تشغيل متتابع        */
+  /* ---------------------------------------------------------------- */
+  const PLAYER_CONTINUOUS_KEY = 'almus-hraf:playerContinuous';
+
+  function isPlayerContinuous() {
+    return localStorage.getItem(PLAYER_CONTINUOUS_KEY) !== '0';
+  }
+
+  function reciterName(id) {
+    const r = (typeof QuranAPI !== 'undefined' && QuranAPI.RECITERS || []).find((x) => x.id === id);
+    return r ? r.name : id;
+  }
+
+  function formatPlayerTime(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return toArabicDigits(`${m}:${String(s).padStart(2, '0')}`);
+  }
+
+  // بطاقات اختيار القارئ تظهر في مكانين (الإعدادات والمشغّل)، ونُبقيها متزامنة معًا
+  function renderReciterChips(containerSel) {
+    const wrap = $(containerSel);
+    if (!wrap || typeof QuranAPI === 'undefined' || !QuranAPI.RECITERS) return;
+    const current = getSelectedReciter();
+    wrap.innerHTML = QuranAPI.RECITERS.map(
+      (r) => `<button class="chip-btn reciter-choice ${r.id === current ? 'active' : ''}" data-reciter="${r.id}">${escapeHTML(r.name)}</button>`
+    ).join('');
+    $$('.reciter-choice', wrap).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        localStorage.setItem(RECITER_KEY, btn.dataset.reciter);
+        document.dispatchEvent(new CustomEvent('reciter-changed'));
+      });
+    });
+  }
+
+  function initReciterSettings() {
+    renderReciterChips('#reciter-choices');
+  }
+
+  function initSurahAudioPlayer() {
+    const headerBtn = $('#btn-header-surah-audio');
+    const bar = $('#surah-audio-bar');
+    const barPlayBtn = $('#surah-audio-playpause');
+    const barTitleEl = $('#surah-audio-title');
+    const barReciterEl = $('#surah-audio-reciter');
+    const barCloseBtn = $('#surah-audio-close');
+    const barSeek = $('#surah-audio-seek');
+    const barPrevBtn = $('#surah-audio-prev');
+    const barNextBtn = $('#surah-audio-next');
+    const barExpandBtn = $('#surah-audio-expand');
+
+    const overlayTitleEl = $('#player-surah-title');
+    const overlayReciterEl = $('#player-reciter-name');
+    const overlayPlayBtn = $('#player-btn-playpause');
+    const overlaySeek = $('#player-seek');
+    const overlayCurrentTime = $('#player-time-current');
+    const overlayDurationTime = $('#player-time-duration');
+    const overlayDisc = $('#player-disc');
+    const overlayPrevBtn = $('#player-btn-prev');
+    const overlayNextBtn = $('#player-btn-next');
+    const continuousToggle = $('#player-continuous-toggle');
+
+    if (!bar) return;
+
+    function surahNameByNumber(num) {
+      const s = (state.surahList || []).find((x) => x.number === num);
+      if (s) return cleanSurahName(s.nameAr);
+      const pageData = state.currentPageData;
+      if (pageData && pageData.ayahs && pageData.ayahs[0] && pageData.ayahs[0].surah.number === num) {
+        return cleanSurahName(pageData.headerSurahName);
+      }
+      return '';
+    }
+
+    function updatePlayPauseIcons(playing) {
+      const icon = playing
+        ? '<svg><use href="#icon-pause"></use></svg>'
+        : '<svg><use href="#icon-play"></use></svg>';
+      if (barPlayBtn) barPlayBtn.innerHTML = playing ? icon : icon;
+      if (overlayPlayBtn) overlayPlayBtn.innerHTML = icon;
+      if (overlayDisc) overlayDisc.classList.toggle('spinning', playing);
+    }
+
+    function syncNowPlayingUI() {
+      const num = state.surahAudioSurah;
+      const name = num ? `سورة ${surahNameByNumber(num)}` : 'اختر سورة لتبدأ الاستماع';
+      const ed = state.surahAudioReciter || getSelectedReciter();
+      if (barTitleEl) barTitleEl.textContent = num ? `سورة ${surahNameByNumber(num)}` : '--';
+      if (barReciterEl) barReciterEl.textContent = reciterName(ed);
+      if (overlayTitleEl) overlayTitleEl.textContent = name;
+      if (overlayReciterEl) overlayReciterEl.textContent = num ? reciterName(ed) : '--';
+
+      $$('.surah-item.player-playing', $('#player-surah-list')).forEach((el) => el.classList.remove('player-playing'));
+      if (num) {
+        const activeItem = $(`.surah-item[data-num="${num}"]`, $('#player-surah-list'));
+        if (activeItem) activeItem.classList.add('player-playing');
+      }
+    }
+
+    function stopAudio() {
+      if (state.surahAudioEl) {
+        state.surahAudioEl.pause();
+        state.surahAudioEl = null;
+      }
+      state.surahAudioSurah = null;
+      state.surahAudioReciter = null;
+      bar.classList.add('hidden');
+      if (headerBtn) headerBtn.classList.remove('active');
+      updatePlayPauseIcons(false);
+      syncNowPlayingUI();
+      if (barSeek) barSeek.value = 0;
+      if (overlaySeek) overlaySeek.value = 0;
+      if (overlayCurrentTime) overlayCurrentTime.textContent = '٠:٠٠';
+      if (overlayDurationTime) overlayDurationTime.textContent = '٠:٠٠';
+    }
+
+    function playSurah(surahNumber) {
+      // إيقاف صوت الآية المفردة إن كان يعمل، تجنبًا لتداخل صوتين معًا
+      if (state.audioEl) { state.audioEl.pause(); }
+      if (state.surahAudioEl) { state.surahAudioEl.pause(); }
+
+      const ed = getSelectedReciter();
+      state.surahAudioSurah = surahNumber;
+      state.surahAudioReciter = ed;
+      state.surahAudioEl = new Audio(QuranAPI.getSurahAudioURL(surahNumber, ed));
+
+      bar.classList.remove('hidden');
+      if (headerBtn) headerBtn.classList.add('active');
+      syncNowPlayingUI();
+
+      state.surahAudioEl.addEventListener('loadedmetadata', () => {
+        const dur = Math.floor(state.surahAudioEl.duration) || 0;
+        if (barSeek) barSeek.max = dur;
+        if (overlaySeek) overlaySeek.max = dur;
+        if (overlayDurationTime) overlayDurationTime.textContent = formatPlayerTime(dur);
+      });
+      state.surahAudioEl.addEventListener('timeupdate', () => {
+        if (!state.surahAudioEl) return;
+        const cur = Math.floor(state.surahAudioEl.currentTime);
+        if (barSeek) barSeek.value = cur;
+        if (overlaySeek) overlaySeek.value = cur;
+        if (overlayCurrentTime) overlayCurrentTime.textContent = formatPlayerTime(cur);
+      });
+      state.surahAudioEl.addEventListener('ended', () => {
+        if (isPlayerContinuous()) {
+          const nextNum = surahNumber >= 114 ? 1 : surahNumber + 1;
+          playSurah(nextNum);
+          showToast(`الآن يُشغَّل: سورة ${surahNameByNumber(nextNum)}`);
+        } else {
+          updatePlayPauseIcons(false);
+        }
+      });
+
+      state.surahAudioEl.play().then(() => {
+        updatePlayPauseIcons(true);
+      }).catch(() => {
+        showToast('تعذّر تشغيل الصوت، تحقّق من الاتصال بالإنترنت');
+        stopAudio();
+      });
+    }
+
+    function togglePlayPause() {
+      if (!state.surahAudioEl) return;
+      if (state.surahAudioEl.paused) {
+        state.surahAudioEl.play();
+        updatePlayPauseIcons(true);
+      } else {
+        state.surahAudioEl.pause();
+        updatePlayPauseIcons(false);
+      }
+    }
+
+    function playAdjacentSurah(delta) {
+      const current = state.surahAudioSurah || (state.currentPageData && state.currentPageData.ayahs[0].surah.number) || 1;
+      let next = current + delta;
+      if (next < 1) next = 114;
+      if (next > 114) next = 1;
+      playSurah(next);
+    }
+
+    // تعريض الدوال لبقية التطبيق (نافذة اختيار السور وزر الرئيسية)
+    window.__playerControls = { playSurah, togglePlayPause, stopAudio, playAdjacentSurah, syncNowPlayingUI };
+
+    if (headerBtn) {
+      headerBtn.addEventListener('click', () => {
+        const pageData = state.currentPageData;
+        const firstAyah = pageData && pageData.ayahs && pageData.ayahs[0];
+        const surahNumber = firstAyah ? firstAyah.surah.number : null;
+
+        if (!state.surahAudioSurah && surahNumber) {
+          playSurah(surahNumber);
+        }
+        openPlayerOverlay();
+      });
+    }
+
+    if (barPlayBtn) barPlayBtn.addEventListener('click', togglePlayPause);
+    if (overlayPlayBtn) overlayPlayBtn.addEventListener('click', togglePlayPause);
+    if (barPrevBtn) barPrevBtn.addEventListener('click', () => playAdjacentSurah(-1));
+    if (barNextBtn) barNextBtn.addEventListener('click', () => playAdjacentSurah(1));
+    if (overlayPrevBtn) overlayPrevBtn.addEventListener('click', () => playAdjacentSurah(-1));
+    if (overlayNextBtn) overlayNextBtn.addEventListener('click', () => playAdjacentSurah(1));
+    if (barCloseBtn) barCloseBtn.addEventListener('click', stopAudio);
+    if (barExpandBtn) barExpandBtn.addEventListener('click', openPlayerOverlay);
+
+    if (barSeek) {
+      barSeek.addEventListener('input', () => {
+        if (state.surahAudioEl) state.surahAudioEl.currentTime = Number(barSeek.value);
+      });
+    }
+    if (overlaySeek) {
+      overlaySeek.addEventListener('input', () => {
+        if (state.surahAudioEl) state.surahAudioEl.currentTime = Number(overlaySeek.value);
+      });
+    }
+
+    if (continuousToggle) {
+      continuousToggle.checked = isPlayerContinuous();
+      continuousToggle.addEventListener('change', () => {
+        localStorage.setItem(PLAYER_CONTINUOUS_KEY, continuousToggle.checked ? '1' : '0');
+      });
+    }
+
+    // تغيير القارئ أثناء التشغيل: أعد تحميل نفس السورة فورًا بصوت القارئ الجديد
+    document.addEventListener('reciter-changed', () => {
+      $$('.reciter-choice').forEach((b) => b.classList.toggle('active', b.dataset.reciter === getSelectedReciter()));
+      if (state.surahAudioSurah) {
+        playSurah(state.surahAudioSurah);
+      } else {
+        syncNowPlayingUI();
+      }
+    });
+
+    syncNowPlayingUI();
+  }
+
+  /* -------- نافذة المشغّل الكامل: قائمة السور القابلة للاختيار -------- */
+  function renderPlayerSurahList(list) {
+    const wrap = $('#player-surah-list');
+    if (!wrap) return;
+    wrap.innerHTML = list
+      .map((s) => {
+        const cleanName = cleanSurahName(s.nameAr);
+        const revType = (s.revelationType === 'Meccan' || s.revelationType === 'مكية') ? 'مكية' : 'مدنية';
+        const playing = state.surahAudioSurah === s.number;
+        return `
+        <button class="surah-item ${playing ? 'player-playing' : ''}" data-num="${s.number}">
+          <span class="surah-item-num">${toArabicDigits(s.number)}</span>
+          <span class="surah-item-info">
+            <span class="surah-item-name">سورة ${cleanName}</span>
+            <span class="surah-item-sub">${revType} · ${toArabicDigits(s.ayahCount)} آية</span>
+          </span>
+        </button>`;
+      })
+      .join('');
+
+    $$('.surah-item', wrap).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const num = Number(btn.dataset.num);
+        if (window.__playerControls) window.__playerControls.playSurah(num);
+      });
+    });
+  }
+
+  function openPlayerOverlay() {
+    if (!state.surahList || !state.surahList.length) {
+      loadSurahIndex().then(() => renderPlayerSurahList(state.surahList));
+    } else {
+      renderPlayerSurahList(state.surahList);
+    }
+    if (window.__playerControls) window.__playerControls.syncNowPlayingUI();
+    openOverlay('#player-overlay');
+  }
+
+  function initPlayerOverlay() {
+    const closeBtn = $('#btn-close-player');
+    if (closeBtn) closeBtn.addEventListener('click', () => closeOverlay('#player-overlay'));
+
+    renderReciterChips('#player-reciter-choices');
+
+    const searchInput = $('#player-surah-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const q = stripTashkeel(e.target.value.trim());
+        if (!q) return renderPlayerSurahList(state.surahList);
+        const filtered = state.surahList.filter(
+          (s) => stripTashkeel(s.nameAr).includes(q) || s.nameEn.toLowerCase().includes(q.toLowerCase())
+        );
+        renderPlayerSurahList(filtered);
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
   /* الأذكار والأدعية                                                 */
   /* ---------------------------------------------------------------- */
-  function renderAccordion(containerId, dataset) {
+  function renderAccordion(containerId, dataset, favType) {
     const wrap = $(containerId);
     if (!wrap || !dataset) return;
     wrap.innerHTML = dataset
@@ -930,13 +1265,18 @@
           ${section.items
             .map((it, j) => {
               const target = Math.max(1, Number(it.count) || 1);
+              const favKey = `${favType}:${section.id}:${j}`;
+              const isFav = favType ? isFavorite(favKey) : false;
               return `
             <div class="dhikr-card">
               <p class="dhikr-text">${escapeHTML(it.text)}</p>
               <div class="dhikr-foot">
                 ${it.note ? `<span class="dhikr-note">${escapeHTML(it.note)}</span>` : ''}
                 ${it.count && it.count > 1 ? `<span class="dhikr-count">×${toArabicDigits(it.count)}</span>` : ''}
-                ${it.source ? `<span class="dhikr-source">${escapeHTML(it.source)}</span>` : ''}
+                <span class="dhikr-foot-end">
+                  ${it.source ? `<span class="dhikr-source">${escapeHTML(it.source)}</span>` : ''}
+                  ${favType ? `<button class="fav-star ${isFav ? 'active' : ''}" data-fav-key="${favKey}" aria-label="إضافة للمفضلة">${isFav ? '★' : '☆'}</button>` : ''}
+                </span>
               </div>
               <div class="tasbih-row">
                 <button class="tasbih-counter" data-target="${target}" data-count="0" aria-label="مسبحة إلكترونية">
@@ -962,6 +1302,92 @@
     });
 
     initTasbihCounters(wrap);
+    initFavoriteStars(wrap);
+  }
+
+  /* -------- الأذكار/الأدعية المفضّلة -------- */
+  const FAVORITES_KEY = 'almus-hraf:favorites';
+  function getFavorites() {
+    try { return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function saveFavorites(f) {
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(f)); } catch (e) { /* تجاهل */ }
+  }
+  function isFavorite(key) { return !!getFavorites()[key]; }
+
+  function initFavoriteStars(wrap) {
+    $$('.fav-star', wrap).forEach((star) => {
+      star.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = star.dataset.favKey;
+        const favs = getFavorites();
+        if (favs[key]) {
+          delete favs[key];
+          star.classList.remove('active');
+          star.textContent = '☆';
+        } else {
+          favs[key] = true;
+          star.classList.add('active');
+          star.textContent = '★';
+        }
+        saveFavorites(favs);
+      });
+    });
+  }
+
+  function renderFavoritesView() {
+    const wrap = $('#favorites-list');
+    if (!wrap) return;
+    const favs = getFavorites();
+    const keys = Object.keys(favs).filter((k) => favs[k]);
+
+    if (!keys.length) {
+      wrap.innerHTML = `<p class="ayah-search-hint">لا توجد أذكار أو أدعية محفوظة بعد. اضغط ⭐ بجانب أي ذكر أو دعاء لإضافته هنا.</p>`;
+      return;
+    }
+
+    function lookup(key) {
+      const parts = key.split(':');
+      const type = parts[0], sectionId = parts[1], idx = Number(parts[2]);
+      const dataset = type === 'azkar'
+        ? (typeof AZKAR_DATA !== 'undefined' ? AZKAR_DATA : [])
+        : (typeof DUAS_DATA !== 'undefined' ? DUAS_DATA : []);
+      const section = dataset.find((s) => s.id === sectionId);
+      if (!section || !section.items[idx]) return null;
+      return { item: section.items[idx], sectionTitle: section.title };
+    }
+
+    const cardsHTML = keys
+      .map((key) => {
+        const found = lookup(key);
+        if (!found) return '';
+        const it = found.item;
+        return `
+          <div class="dhikr-card">
+            <p class="dhikr-text">${escapeHTML(it.text)}</p>
+            <div class="dhikr-foot">
+              <span class="dhikr-note">${escapeHTML(found.sectionTitle)}</span>
+              <span class="dhikr-foot-end">
+                ${it.source ? `<span class="dhikr-source">${escapeHTML(it.source)}</span>` : ''}
+                <button class="fav-star active" data-fav-key="${key}" aria-label="إزالة من المفضلة">★</button>
+              </span>
+            </div>
+          </div>`;
+      })
+      .join('');
+
+    wrap.innerHTML = cardsHTML;
+
+    $$('.fav-star', wrap).forEach((star) => {
+      star.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = star.dataset.favKey;
+        const favs2 = getFavorites();
+        delete favs2[key];
+        saveFavorites(favs2);
+        renderFavoritesView();
+      });
+    });
   }
 
   /* -------- المسبحة الإلكترونية: عدّاد لمسي لكل ذكر -------- */
@@ -1055,6 +1481,8 @@
     });
 
     initOfflineDownload();
+    initReciterSettings();
+    initKhatmaTracking();
   }
 
   /* ---------------------------------------------------------------- */
@@ -1143,6 +1571,173 @@
       cancelBtn.addEventListener('click', () => {
         offlineDownloadCancelled = true;
       });
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* متابعة ختمة القرآن (الورد اليومي)                                  */
+  /* كل صفحة تُفتَح تُسجَّل تلقائيًا كمقروءة بتاريخ اليوم                */
+  /* ---------------------------------------------------------------- */
+  const KHATMA_KEY = 'almus-hraf:khatma';
+  function getKhatma() {
+    try {
+      const raw = localStorage.getItem(KHATMA_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return Object.assign({ startDate: todayStr(), dailyTarget: 4, pagesRead: {} }, parsed);
+    } catch (e) {
+      return { startDate: todayStr(), dailyTarget: 4, pagesRead: {} };
+    }
+  }
+  function saveKhatma(k) {
+    try { localStorage.setItem(KHATMA_KEY, JSON.stringify(k)); } catch (e) { /* تجاهل */ }
+  }
+
+  function recordKhatmaPageRead(pageNumber) {
+    const k = getKhatma();
+    const today = todayStr();
+    if (k.pagesRead[pageNumber] !== today) {
+      k.pagesRead[pageNumber] = today;
+      saveKhatma(k);
+    }
+    renderKhatmaProgress();
+  }
+
+  function renderKhatmaProgress() {
+    const fill = $('#khatma-progress-fill');
+    const text = $('#khatma-progress-text');
+    if (!fill && !text) return;
+
+    const k = getKhatma();
+    const total = 604;
+    const readCount = Object.keys(k.pagesRead).length;
+    const pct = Math.min(100, Math.round((readCount / total) * 100));
+    if (fill) fill.style.width = pct + '%';
+
+    const today = todayStr();
+    const todayCount = Object.values(k.pagesRead).filter((d) => d === today).length;
+    const target = Number(k.dailyTarget) || 4;
+    const remaining = total - readCount;
+
+    let etaText = '';
+    if (remaining > 0 && target > 0) {
+      const daysLeft = Math.ceil(remaining / target);
+      etaText = ` — يتبقى نحو ${toArabicDigits(daysLeft)} يوم بمعدل الورد الحالي`;
+    } else if (remaining <= 0) {
+      etaText = ' — تهانينا، أتممت الختمة بالكامل 🎉';
+    }
+
+    if (text) {
+      text.textContent = `قرأت ${toArabicDigits(readCount)} من ٦٠٤ صفحة (${toArabicDigits(pct)}٪) — اليوم: ${toArabicDigits(todayCount)} من ${toArabicDigits(target)} صفحة${etaText}`;
+    }
+  }
+
+  function initKhatmaTracking() {
+    const target = $('#khatma-daily-target');
+    const restartBtn = $('#btn-khatma-restart');
+
+    if (target) {
+      target.value = getKhatma().dailyTarget || 4;
+      target.addEventListener('change', () => {
+        const s = getKhatma();
+        s.dailyTarget = Math.max(1, Number(target.value) || 1);
+        saveKhatma(s);
+        renderKhatmaProgress();
+      });
+    }
+
+    if (restartBtn) {
+      restartBtn.addEventListener('click', () => {
+        saveKhatma({ startDate: todayStr(), dailyTarget: (getKhatma().dailyTarget || 4), pagesRead: {} });
+        renderKhatmaProgress();
+        showToast('تم بدء ختمة جديدة، بالتوفيق 🤍');
+      });
+    }
+
+    renderKhatmaProgress();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* بوصلة اتجاه القبلة                                                */
+  /* ---------------------------------------------------------------- */
+  const KAABA_LAT = 21.4225;
+  const KAABA_LNG = 39.8262;
+  let qiblaBearing = null;
+
+  function computeQiblaBearing(lat, lng) {
+    const φ1 = (lat * Math.PI) / 180;
+    const φ2 = (KAABA_LAT * Math.PI) / 180;
+    const Δλ = ((KAABA_LNG - lng) * Math.PI) / 180;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const θ = (Math.atan2(y, x) * 180) / Math.PI;
+    return (θ + 360) % 360;
+  }
+
+  function handleQiblaOrientation(e) {
+    let heading = null;
+    if (typeof e.webkitCompassHeading === 'number') {
+      heading = e.webkitCompassHeading; // iOS: قيمة مطلقة دائمًا
+    } else if (e.alpha !== null && e.alpha !== undefined) {
+      heading = (360 - e.alpha) % 360; // تقريب شائع لأندرويد
+    }
+    if (heading === null || qiblaBearing === null) return;
+
+    const ring = $('#qibla-ring');
+    const pinRotator = $('#qibla-pin-rotator');
+    if (ring) ring.style.transform = `rotate(${-heading}deg)`;
+    if (pinRotator) pinRotator.style.transform = `rotate(${qiblaBearing}deg)`;
+
+    const status = $('#qibla-status');
+    if (status) {
+      const diff = Math.abs((((qiblaBearing - heading + 540) % 360)) - 180);
+      status.textContent = diff < 6
+        ? 'أنت متجه الآن نحو القبلة تمامًا 🕋'
+        : `زاوية القبلة من الشمال: ${toArabicDigits(Math.round(qiblaBearing))}°`;
+    }
+  }
+
+  function initQiblaCompass() {
+    const btn = $('#btn-enable-qibla');
+    const status = $('#qibla-status');
+    if (!btn) return;
+
+    function startListening() {
+      const eventName = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+      window.addEventListener(eventName, handleQiblaOrientation);
+      btn.classList.add('hidden');
+    }
+
+    function startWithPosition(lat, lng) {
+      qiblaBearing = computeQiblaBearing(lat, lng);
+      if (status) status.textContent = `زاوية القبلة من الشمال: ${toArabicDigits(Math.round(qiblaBearing))}°`;
+
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // iOS 13+: يتطلب إذنًا صريحًا من ضغطة المستخدم
+        btn.textContent = 'تفعيل البوصلة';
+        btn.classList.remove('hidden');
+        btn.onclick = () => {
+          DeviceOrientationEvent.requestPermission()
+            .then((res) => {
+              if (res === 'granted') startListening();
+              else showToast('لم يتم منح إذن استخدام البوصلة');
+            })
+            .catch(() => showToast('تعذّر تفعيل البوصلة على هذا الجهاز'));
+        };
+      } else if ('DeviceOrientationEvent' in window) {
+        startListening();
+      } else {
+        btn.classList.add('hidden');
+        if (status) status.textContent += ' — بوصلة الجهاز غير مدعومة على هذا المتصفح، استخدم هذه الزاوية على بوصلة عادية';
+      }
+    }
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => startWithPosition(pos.coords.latitude, pos.coords.longitude),
+        () => { if (status) status.textContent = 'تعذّر تحديد موقعك؛ فعّل خدمة الموقع من إعدادات الهاتف لحساب اتجاه القبلة'; }
+      );
+    } else if (status) {
+      status.textContent = 'المتصفح لا يدعم تحديد الموقع';
     }
   }
 
@@ -1488,6 +2083,7 @@
 
   async function init() {
     initNavMenu();
+    initHomeTab();
     initDuaBanner();
     initIndexOverlay();
     initSwipeNavigation();
@@ -1502,9 +2098,12 @@
 
     loadPrayerTimes();
     initNotifications();
+    initSurahAudioPlayer();
+    initPlayerOverlay();
+    initQiblaCompass();
 
-    if (typeof AZKAR_DATA !== 'undefined') renderAccordion('#azkar-accordion', AZKAR_DATA);
-    if (typeof DUAS_DATA !== 'undefined') renderAccordion('#duas-accordion', DUAS_DATA);
+    if (typeof AZKAR_DATA !== 'undefined') renderAccordion('#azkar-accordion', AZKAR_DATA, 'azkar');
+    if (typeof DUAS_DATA !== 'undefined') renderAccordion('#duas-accordion', DUAS_DATA, 'duas');
 
     loadSurahIndex();
 

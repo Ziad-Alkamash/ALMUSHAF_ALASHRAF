@@ -118,9 +118,28 @@ const QuranAPI = (() => {
     };
   }
 
-  // 5️⃣ رابط تلاوة صوتية للآية (الشيخ مشاري العفاسي)
-  async function getAyahAudio(surah, ayah) {
-    const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/ar.alafasy`, 24 * 365);
+  // قائمة القراء المتاحين للاستماع (معرّفات إصدارات الصوت في شبكة alquran.cloud / cdn.islamic.network)
+  const RECITERS = [
+    { id: 'ar.alafasy', name: 'مشاري العفاسي' },
+    { id: 'ar.abdulbasitmurattal', name: 'عبد الباسط عبد الصمد (مرتل)' },
+    { id: 'ar.abdurrahmaansudais', name: 'عبد الرحمن السديس' },
+    { id: 'ar.husary', name: 'محمود خليل الحصري' },
+    { id: 'ar.minshawi', name: 'محمد صديق المنشاوي' },
+    { id: 'ar.mahermuaiqly', name: 'ماهر المعيقلي' },
+    { id: 'ar.saoodshuraym', name: 'سعود الشريم' },
+    { id: 'ar.ahmedajamy', name: 'أحمد العجمي' }
+  ];
+
+  // رابط ملف صوتي لسورة كاملة بصوت قارئ محدد
+  function getSurahAudioURL(surahNumber, editionId) {
+    const ed = editionId || 'ar.alafasy';
+    return `https://cdn.islamic.network/quran/audio-surah/128/${ed}/${surahNumber}.mp3`;
+  }
+
+  // 5️⃣ رابط تلاوة صوتية للآية (افتراضيًا الشيخ مشاري العفاسي، أو أي قارئ آخر من RECITERS)
+  async function getAyahAudio(surah, ayah, editionId) {
+    const ed = editionId || 'ar.alafasy';
+    const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/${ed}`, 24 * 365);
     return data.data.audio;
   }
 
@@ -181,6 +200,8 @@ const QuranAPI = (() => {
     getAyahAudio, 
     getWordMeanings,
     searchQuran,
-    pageURL
+    pageURL,
+    RECITERS,
+    getSurahAudioURL
   };
 })();
