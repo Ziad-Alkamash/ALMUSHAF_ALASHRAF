@@ -2,6 +2,19 @@
 (() => {
   'use strict';
 
+  // ------------------------------------------------------------------
+  // إعدادات خادم إشعارات الدفع (Web Push) — عدّل القيمتين بعد تشغيل
+  // سيرفر push-server على الراسبيري باي (راجع ملف push-server/README.md):
+  //   serverUrl      : رابط الخادم كما يظهر للمتصفح (يُفضّل HTTPS، مثال عبر Cloudflare Tunnel)
+  //   vapidPublicKey : المفتاح العام الذي طبعه أمر "node generate-vapid.js"
+  // إذا تُركت فارغة، يستمر التطبيق بالعمل بالتذكيرات المحلية العادية فقط
+  // (تعمل أثناء فتح التطبيق) بدون إشعارات push حقيقية بعد إغلاقه.
+  // ------------------------------------------------------------------
+  const PUSH_CONFIG = {
+    serverUrl: 'https://grew-turban-appetite.ngrok-free.dev',
+    vapidPublicKey: 'BB4w9rfIO6pY_Xlr5blDSvFxoU-WoSKgR0EN_SQoTvAWnDyw_o7af_hvAotdyx7D2XDVw9kJDKJZtd9qCG_rtng'
+  };
+
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -1772,6 +1785,17 @@
 
   let prayerTimings = null;
   let timerInterval = null;
+  const GEO_KEY = 'almus-hraf:geo';
+
+  function saveGeo(lat, lng) {
+    try { localStorage.setItem(GEO_KEY, JSON.stringify({ lat, lng })); } catch (e) { /* تجاهل */ }
+  }
+  function getSavedGeo() {
+    try {
+      const raw = localStorage.getItem(GEO_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
 
   async function loadPrayerTimes() {
     let lat = 30.0444;
@@ -1787,6 +1811,7 @@
     }
 
     async function fetchTimings(latitude, longitude) {
+      saveGeo(latitude, longitude);
       try {
         const res = await fetch(`https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=5`);
         const data = await res.json();
@@ -1799,6 +1824,7 @@
 
           renderPrayerTimes(prayerTimings);
           startNextPrayerCountdown(prayerTimings);
+          syncPushSubscription(); // أول مرة تتوفر فيها الإحداثيات، نُحدّث خادم الـ Push بها إن كان مفعّلاً
         }
       } catch (e) {
         const nextName = $('#next-prayer-name');
@@ -1883,6 +1909,9 @@
     sabah: { enabled: false, time: '06:00', lastSent: '' },
     masaa: { enabled: false, time: '18:00', lastSent: '' },
     kahf: { enabled: false, time: '08:00', lastSent: '' },
+    wird: { enabled: false, time: '21:00', lastSent: '' },
+    naom: { enabled: false, time: '22:00', lastSent: '' },
+    mayyit4h: { enabled: false, lastSentAt: 0 },
     prayers: { enabled: false, lastSent: {} }
   };
 
@@ -1939,6 +1968,28 @@
       changed = true;
     }
 
+    if (settings.wird && settings.wird.enabled && settings.wird.lastSent !== today && hm >= settings.wird.time) {
+      sendNotification('تذكير الورد اليومي 📅', 'حان وقت وردك اليومي من القرآن، اضغط لفتح المصحف ومتابعة القراءة.');
+      settings.wird.lastSent = today;
+      changed = true;
+    }
+
+    if (settings.naom && settings.naom.enabled && settings.naom.lastSent !== today && hm >= settings.naom.time) {
+      sendNotification('أذكار النوم 🛏️', 'حان وقت أذكار النوم، تقبّل الله منك.');
+      settings.naom.lastSent = today;
+      changed = true;
+    }
+
+    // دعاء للفقيد كل 4 ساعات (تحقّق محلي بسيط أثناء فتح التطبيق فقط؛ التكرار الحقيقي الدقيق يديره خادم الـ Push)
+    if (settings.mayyit4h && settings.mayyit4h.enabled) {
+      const FOUR_HOURS = 4 * 60 * 60 * 1000;
+      if (!settings.mayyit4h.lastSentAt || Date.now() - settings.mayyit4h.lastSentAt >= FOUR_HOURS) {
+        sendNotification('دعاء للفقيد 🕊️', 'اللهم اغفر لأشرف أحمد جاهين وارحمه وأسكنه فسيح جناتك — قل: اللهم اغفر له وارحمه.');
+        settings.mayyit4h.lastSentAt = Date.now();
+        changed = true;
+      }
+    }
+
     // إشعار عند دخول وقت كل صلاة من الصلوات الخمس، بالاعتماد على المواقيت المجلوبة لموقع الجهاز
     if (settings.prayers && settings.prayers.enabled && prayerTimings) {
       if (!settings.prayers.lastSent) settings.prayers.lastSent = {};
@@ -1986,8 +2037,13 @@
     const settings = getReminderSettings();
     const permGranted = ('Notification' in window) && Notification.permission === 'granted';
 
-    [['sabah', '#toggle-sabah', '#time-sabah'], ['masaa', '#toggle-masaa', '#time-masaa'], ['kahf', '#toggle-kahf', '#time-kahf']]
-      .forEach(([key, toggleSel, timeSel]) => {
+    [
+      ['sabah', '#toggle-sabah', '#time-sabah'],
+      ['masaa', '#toggle-masaa', '#time-masaa'],
+      ['kahf', '#toggle-kahf', '#time-kahf'],
+      ['wird', '#toggle-wird', '#time-wird'],
+      ['naom', '#toggle-naom', '#time-naom']
+    ].forEach(([key, toggleSel, timeSel]) => {
         const toggle = $(toggleSel);
         const timeInput = $(timeSel);
         if (!toggle || !timeInput) return;
@@ -2003,6 +2059,7 @@
           saveReminderSettings(s);
           timeInput.disabled = !toggle.checked;
           checkReminders();
+          syncPushSubscription();
           if (toggle.checked) showToast('تم تفعيل التذكير بنجاح 🔔');
         };
 
@@ -2011,8 +2068,28 @@
           s[key].time = timeInput.value;
           s[key].lastSent = ''; // إعادة التفعيل لهذا اليوم عند تغيير الوقت
           saveReminderSettings(s);
+          syncPushSubscription();
         };
       });
+
+    // دعاء للفقيد كل 4 ساعات: مفتاح تفعيل فقط بلا وقت يدوي
+    const mayyitToggle = $('#toggle-mayyit4h');
+    if (mayyitToggle) {
+      if (!settings.mayyit4h) settings.mayyit4h = { enabled: false, lastSentAt: 0 };
+      mayyitToggle.checked = !!settings.mayyit4h.enabled;
+      mayyitToggle.disabled = !permGranted;
+
+      mayyitToggle.onchange = () => {
+        const s = getReminderSettings();
+        if (!s.mayyit4h) s.mayyit4h = { enabled: false, lastSentAt: 0 };
+        s.mayyit4h.enabled = mayyitToggle.checked;
+        if (mayyitToggle.checked) s.mayyit4h.lastSentAt = Date.now(); // أول تذكير بعد 4 ساعات من التفعيل
+        saveReminderSettings(s);
+        checkReminders();
+        syncPushSubscription();
+        if (mayyitToggle.checked) showToast('تم تفعيل الدعاء الدوري للفقيد كل ٤ ساعات 🕊️');
+      };
+    }
 
     // تذكير مواقيت الصلاة الخمس: مفتاح تفعيل فقط بلا وقت يدوي (يعتمد على المواقيت المجلوبة تلقائيًا)
     const prayersToggle = $('#toggle-prayers');
@@ -2027,9 +2104,99 @@
         s.prayers.enabled = prayersToggle.checked;
         saveReminderSettings(s);
         checkReminders();
+        syncPushSubscription();
         if (prayersToggle.checked) showToast('تم تفعيل تذكير مواقيت الصلاة 🕌');
       };
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* إشعارات الدفع الحقيقية (Web Push) عبر خادم خارجي (راسبيري باي)     */
+  /* تعمل حتى بعد إغلاق التطبيق تمامًا. راجع push-server/README.md      */
+  /* ---------------------------------------------------------------- */
+  function pushEnabled() {
+    return !!(PUSH_CONFIG.serverUrl && PUSH_CONFIG.vapidPublicKey && 'serviceWorker' in navigator && 'PushManager' in window);
+  }
+
+  // تحويل مفتاح VAPID العام من Base64Url إلى Uint8Array كما تتطلبه pushManager.subscribe
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  // الاشتراك الفعلي في الدفع عبر المتصفح (مرة واحدة فقط، ثم يبقى الاشتراك محفوظًا في المتصفح)
+  async function subscribeToPush() {
+    if (!pushEnabled()) return null;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(PUSH_CONFIG.vapidPublicKey)
+        });
+      }
+      return sub;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // إرسال الاشتراك + التفضيلات الحالية (المواعيد المفعّلة + الموقع الجغرافي) إلى خادم الدفع
+  // يُستدعى عند: تفعيل الإذن أول مرة، وأي تغيير في مواعيد/مفاتيح التذكيرات، وأول توفّر للموقع الجغرافي
+  let pushSyncTimer = null;
+  function syncPushSubscription() {
+    if (!pushEnabled()) return;
+    clearTimeout(pushSyncTimer);
+    // تأخير بسيط (Debounce) لتجميع عدة تغييرات متتالية في طلب واحد بدل إثقال السيرفر الصغير
+    pushSyncTimer = setTimeout(async () => {
+      const sub = await subscribeToPush();
+      if (!sub) return;
+
+      const settings = getReminderSettings();
+      const geo = getSavedGeo();
+
+      try {
+        await fetch(`${PUSH_CONFIG.serverUrl}/api/subscribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true' // يتجاهله السيرفر لو مش شغال عبر ngrok، مطلوب فقط مع نفق ngrok المجاني
+          },
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            lat: geo ? geo.lat : null,
+            lng: geo ? geo.lng : null,
+            prefs: {
+              sabah: settings.sabah,
+              masaa: settings.masaa,
+              kahf: settings.kahf,
+              wird: settings.wird,
+              naom: settings.naom,
+              mayyit4h: { enabled: !!(settings.mayyit4h && settings.mayyit4h.enabled) },
+              prayers: { enabled: !!(settings.prayers && settings.prayers.enabled) }
+            }
+          })
+        });
+      } catch (e) { /* السيرفر غير متاح الآن — سيُعاد المحاولة عند أي تغيير لاحق أو فتح التطبيق مجددًا */ }
+    }, 800);
+  }
+
+  // استقبال رسائل من الـ Service Worker (الضغط على إشعار push، أو تجديد اشتراك منتهي)
+  function initPushMessaging() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const msg = event.data || {};
+      if (msg.type === 'notification-click' && msg.url) {
+        // فتح التبويب المناسب حسب رابط الإشعار (اختياري) — الافتراضي فتح الصفحة الرئيسية فقط
+      } else if (msg.type === 'push-resubscribed') {
+        syncPushSubscription();
+      }
+    });
   }
 
   function initNotifications() {
@@ -2039,10 +2206,12 @@
     if ('Notification' in window && Notification.permission === 'granted') {
       btn.textContent = 'مُفعَّلة ✅';
       btn.disabled = true;
+      syncPushSubscription();
     }
 
     syncReminderUI();
     startReminderScheduler();
+    initPushMessaging();
 
     btn.addEventListener('click', async () => {
       if (!('Notification' in window)) {
@@ -2053,9 +2222,14 @@
       if (perm === 'granted') {
         btn.textContent = 'مُفعَّلة ✅';
         btn.disabled = true;
-        showToast('تم تفعيل الإذن، يمكنك الآن ضبط مواعيد التذكيرات بالأسفل 🔔');
+        showToast(
+          pushEnabled()
+            ? 'تم تفعيل الإذن، يمكنك الآن ضبط مواعيد التذكيرات بالأسفل 🔔'
+            : 'تم تفعيل الإذن (تذكيرات محلية أثناء فتح التطبيق فقط، لم يُضبط خادم الـ Push بعد) 🔔'
+        );
         syncReminderUI();
         checkReminders();
+        syncPushSubscription();
       } else {
         showToast('لم يتم إعطاء الإذن للإشعارات');
       }

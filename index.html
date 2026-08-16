@@ -507,7 +507,57 @@
           </div>
         </div>
 
-        <p class="settings-mini-note">تعمل هذه التذكيرات أثناء فتح التطبيق أو تشغيله في الخلفية على نفس الجهاز؛ إشعارات الدفع بعد إغلاق التطبيق تمامًا تحتاج خادمًا خارجيًا غير متوفر حاليًا في هذا الإصدار.</p>
+        <div class="settings-card-row" data-reminder-row="wird">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">📅</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تذكير الورد اليومي</span>
+              <span class="settings-card-sub">تنبيه يومي بقراءة نصيبك من القرآن</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <input type="time" id="time-wird" class="time-input" value="21:00">
+            <label class="switch">
+              <input type="checkbox" id="toggle-wird">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card-row" data-reminder-row="naom">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🛏️</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">تذكير أذكار النوم</span>
+              <span class="settings-card-sub">تنبيه يومي قبل النوم</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <input type="time" id="time-naom" class="time-input" value="22:00">
+            <label class="switch">
+              <input type="checkbox" id="toggle-naom">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card-row" data-reminder-row="mayyit4h">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">🕊️</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">دعاء للفقيد أشرف أحمد جاهين</span>
+              <span class="settings-card-sub">تذكير متكرر كل ٤ ساعات بالدعاء له رحمه الله</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <label class="switch">
+              <input type="checkbox" id="toggle-mayyit4h">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <p class="settings-mini-note" id="push-status-note">تعمل هذه التذكيرات أثناء فتح التطبيق أو تشغيله في الخلفية على نفس الجهاز. لإشعارات push حقيقية تصل حتى بعد إغلاق التطبيق تمامًا، اضبط رابط ومفتاح خادم الدفع في أعلى ملف app.js (راجع مجلد push-server المرفق لتشغيله على الراسبيري باي).</p>
       </div>
     </div>
 

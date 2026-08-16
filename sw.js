@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mushaf-ashraf-v4';
+const CACHE_NAME = 'mushaf-ashraf-v5';
 
 // طبقة تخزين منفصلة لبيانات القرآن المجلوبة من الإنترنت (صفحات المصحف، التفسير، الصوتيات، معاني الكلمات)
 // تبقى هذه البيانات محفوظة دائمًا حتى بعد تحديث التطبيق، ولا تُمسح إلا يدويًا من إعدادات المتصفح
@@ -84,5 +84,77 @@ self.addEventListener('fetch', (event) => {
       }
       return fetch(event.request);
     })
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* إشعارات الدفع الحقيقية (Web Push) — تعمل حتى بعد إغلاق التطبيق تمامًا */
+/* الإشعار يصل من خادم الدفع (سيرفر الراسبيري باي) عبر شبكة المتصفح،    */
+/* وهذا الـ Service Worker مسؤول فقط عن عرضه والتعامل مع الضغط عليه.    */
+/* ------------------------------------------------------------------ */
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'المصحف الأشرف', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = payload.title || 'المصحف الأشرف';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || './icon-192.png',
+    badge: payload.badge || './icon-192.png',
+    dir: 'rtl',
+    lang: 'ar',
+    tag: payload.tag || undefined,
+    renotify: !!payload.tag,
+    data: { url: payload.url || './index.html' },
+    vibrate: [80, 40, 80]
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// الضغط على الإشعار: يفتح التطبيق (أو يركّز على تبويب مفتوح بالفعل بدل فتح نسخة جديدة)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetURL = (event.notification.data && event.notification.data.url) || './index.html';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.postMessage({ type: 'notification-click', url: targetURL });
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(targetURL);
+    })
+  );
+});
+
+// إذا ألغى المتصفح الاشتراك من تلقاء نفسه (نادر، مثل انتهاء صلاحيته)، نحاول تجديده تلقائيًا
+// ونُبلّغ خادم الدفع بالاشتراك الجديد حتى لا يستمر بالإرسال إلى اشتراك ميت
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const oldEndpoint = event.oldSubscription ? event.oldSubscription.endpoint : null;
+        const applicationServerKey = event.oldSubscription
+          ? event.oldSubscription.options.applicationServerKey
+          : (event.newSubscription ? event.newSubscription.options.applicationServerKey : null);
+
+        const newSub = event.newSubscription || await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey
+        });
+
+        const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        if (clientList[0]) {
+          clientList[0].postMessage({ type: 'push-resubscribed', oldEndpoint, subscription: newSub.toJSON() });
+        }
+      } catch (e) { /* تجاهل — سيُعاد الاشتراك من الواجهة عند فتح التطبيق التالي */ }
+    })()
   );
 });
