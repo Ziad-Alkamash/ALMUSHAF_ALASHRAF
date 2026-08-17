@@ -194,20 +194,17 @@ body.theme-night #header-context { color: var(--gold-soft); }
 .header-mini-btn svg { width: 15px; height: 15px; }
 .header-mini-btn.active { color: var(--gold-bright); }
 
-/* زر النقاط الأربع في منتصف الهيدر — يفتح القائمة المنبثقة */
+/* زر القائمة في منتصف الهيدر — أربع مربعات مسطّحة بطراز مودرن (بلا خلفية دائرية) */
 .menu-dot-btn {
-  width: 32px; height: 32px;
-  border-radius: 50%;
+  width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 70%);
-  border: 1px solid var(--gold-deep);
-  color: var(--emerald);
-  box-shadow: 0 2px 6px rgba(0,0,0,.22);
+  color: var(--gold-deep);
   flex-shrink: 0;
-  transition: transform .15s;
+  transition: transform .15s, opacity .15s;
 }
-.menu-dot-btn svg { width: 15px; height: 15px; }
-.menu-dot-btn:active { transform: scale(.88); }
+.menu-dot-btn svg { width: 21px; height: 21px; }
+.menu-dot-btn:active { transform: scale(.88); opacity: .75; }
+body.theme-night .menu-dot-btn { color: var(--gold-soft); }
 
 .icon-btn {
   width: 40px; height: 40px;
