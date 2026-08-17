@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mushaf-ashraf-v14';
+const CACHE_NAME = 'mushaf-ashraf-v15';
 
 // طبقة تخزين منفصلة لبيانات القرآن المجلوبة من الإنترنت (صفحات المصحف، التفسير، الصوتيات، معاني الكلمات)
 // تبقى هذه البيانات محفوظة دائمًا حتى بعد تحديث التطبيق، ولا تُمسح إلا يدويًا من إعدادات المتصفح
@@ -18,6 +18,8 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  './icon-192-maskable.png',
+  './icon-512-maskable.png',
   './notif-icon-192.png',
   './notif-icon-512.png',
   './notif-badge-96.png',
