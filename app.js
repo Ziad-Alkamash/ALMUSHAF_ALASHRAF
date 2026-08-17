@@ -1086,8 +1086,48 @@
       if (!state.audioEl) {
         iconWrap.innerHTML = '⏳';
         const { surah, ayah } = state.activeAyah;
-        const url = await QuranAPI.getAyahAudio(surah, ayah, getSelectedReciter());
-        state.audioEl = new Audio(url);
+        const ed = getSelectedReciter();
+
+        // القراء اللي ملفهم سورة كاملة بس من غير تسجيل آية-بآية حقيقي (هيثم الدخين
+        // حاليًا): مفيش رابط مباشر للآية المطلوبة عند QuranAPI.getAyahAudio، فكان
+        // بيرجع خطأ (404) من alquran.cloud ويوهم المستخدم إن فيه مشكلة اتصال، مع إن
+        // القارئ ده أصلاً معندوش تسجيل آية-بآية في أي مصدر. الحل: نفتح ملف السورة
+        // الكاملة ونقفز لموضع الآية تقريبيًا (بنفس أسلوب computeBoundsAndSeek في
+        // مشغّل السورة المتواصل تحت)، ونوقف تلقائيًا عند بداية الآية اللي بعدها
+        const fullFileOnly = typeof QuranAPI !== 'undefined' && QuranAPI.isCustomAudioReciter && QuranAPI.isCustomAudioReciter(ed);
+
+        if (fullFileOnly) {
+          const ayahLenList = await QuranAPI.getSurahAyahLengths(surah).catch(() => null);
+          const url = QuranAPI.getSurahAudioURL(surah, ed);
+          state.audioEl = new Audio(url);
+          if (ayah !== 1) showToast(`تسجيل ${reciterName(ed)} سورة كاملة، هيبدأ من موضع هذه الآية تقريبًا داخل الملف`);
+
+          let segEnd = null;
+          state.audioEl.addEventListener('loadedmetadata', () => {
+            const dur = state.audioEl.duration;
+            if (!ayahLenList || !ayahLenList.length || !dur || !isFinite(dur)) return;
+            const totalLen = ayahLenList.reduce((s, a) => s + a.length, 0) || 1;
+            let acc = 0;
+            const bounds = ayahLenList.map((a) => {
+              const start = (acc / totalLen) * dur;
+              acc += a.length;
+              return { ayah: a.numberInSurah, start };
+            });
+            const idx = bounds.findIndex((b) => b.ayah === ayah);
+            if (idx === -1) return;
+            state.audioEl.currentTime = bounds[idx].start;
+            segEnd = idx + 1 < bounds.length ? bounds[idx + 1].start : dur;
+          });
+          state.audioEl.addEventListener('timeupdate', () => {
+            if (segEnd !== null && state.audioEl.currentTime >= segEnd) {
+              state.audioEl.pause();
+              iconWrap.innerHTML = '<svg><use href="#icon-play"></use></svg>';
+            }
+          });
+        } else {
+          const url = await QuranAPI.getAyahAudio(surah, ayah, ed);
+          state.audioEl = new Audio(url);
+        }
         state.audioEl.addEventListener('ended', () => {
           iconWrap.innerHTML = '<svg><use href="#icon-play"></use></svg>';
         });
