@@ -247,6 +247,8 @@ const QuranAPI = (() => {
   // ملاحظة مهمة: روابط ملفات mp3quran.net الفعلية تمر عبر مسار "/download/" وليس
   // مباشرة تحت اسم القارئ (تم التحقق من المسار الصحيح يدويًا من صفحات الموقع نفسه)،
   // وبدون هذا الجزء من الرابط كانت كل السور بهؤلاء القراء الأربعة تفشل بصمت
+  // تُستخدم هذه الروابط بس لزرار "تشغيل السورة كاملة" و لهيثم الدخين تحديدًا (اللي
+  // مفيش له تسجيل آية-بآية حقيقي متاح في أي مكان)، انظر CUSTOM_AYAH_AUDIO تحت
   const CUSTOM_SURAH_AUDIO = {
     'ar.yasseraldosari': (n) => `https://server11.mp3quran.net/download/yasser/${String(n).padStart(3, '0')}.mp3`,
     'ar.faresabbad': (n) => `https://server8.mp3quran.net/download/frs_a/${String(n).padStart(3, '0')}.mp3`,
@@ -254,9 +256,25 @@ const QuranAPI = (() => {
     'ar.saadalghamdi': (n) => `https://server7.mp3quran.net/download/s_gmd/${String(n).padStart(3, '0')}.mp3`
   };
 
-  // هل هذا القارئ من القراء الذين لا تتوفر لهم إلا ملفات سورة كاملة (بلا تسجيل آية-بآية)؟
+  // روابط آية-بآية حقيقية ودقيقة ١٠٠٪ (مش تقدير) لثلاثة من القراء الأربعة أعلاه، من
+  // مكتبة everyayah.com — أرشيف صوتي موثوق ومستخدم من عشرات تطبيقات القرآن منذ أكتر
+  // من عشر سنين، وفيه تسجيلات مقسّمة آية بآية فعليًا لهؤلاء القراء بالذات (بخلاف
+  // alquran.cloud اللي معندهاش تسجيل آية-بآية ليهم أصلاً). لاحظ إن هيثم الدخين مش
+  // موجود هنا لأن مفيش تسجيل آية-بآية له في أي مصدر موثوق اتاح لقيناه، فبيفضل يشتغل
+  // بالتقدير التقريبي من ملف السورة الكاملة (انظر computeBoundsAndSeek في app.js)
+  // نمط اسم الملف: رقم السورة ٣ خانات + رقم الآية ٣ خانات، مثال: 083010.mp3 = سورة ٨٣ آية ١٠
+  const CUSTOM_AYAH_AUDIO = {
+    'ar.yasseraldosari': (s, a) => `https://everyayah.com/data/Yasser_Ad-Dussary_128kbps/${String(s).padStart(3, '0')}${String(a).padStart(3, '0')}.mp3`,
+    'ar.faresabbad': (s, a) => `https://everyayah.com/data/Fares_Abbad_64kbps/${String(s).padStart(3, '0')}${String(a).padStart(3, '0')}.mp3`,
+    'ar.saadalghamdi': (s, a) => `https://everyayah.com/data/Ghamadi_40kbps/${String(s).padStart(3, '0')}${String(a).padStart(3, '0')}.mp3`
+  };
+
+  // هل هذا القارئ من القراء الذين لا تتوفر لهم إلا ملفات سورة كاملة (بلا أي تسجيل
+  // آية-بآية حقيقي في أي مكان)؟ القراء اللي عندهم رابط آية-بآية حقيقي في
+  // CUSTOM_AYAH_AUDIO ميتحسبوش هنا حتى لو كان عندهم كمان ملف سورة كاملة، عشان
+  // يشتغلوا بالمسار العادي (فتح ملف الآية المطلوبة مباشرة بدقة كاملة)
   function isCustomAudioReciter(editionId) {
-    return !!CUSTOM_SURAH_AUDIO[editionId];
+    return !!CUSTOM_SURAH_AUDIO[editionId] && !CUSTOM_AYAH_AUDIO[editionId];
   }
 
   // رابط ملف صوتي لسورة كاملة بصوت قارئ محدد
@@ -267,12 +285,12 @@ const QuranAPI = (() => {
   }
 
   // 5️⃣ رابط تلاوة صوتية للآية (افتراضيًا الشيخ مشاري العفاسي، أو أي قارئ آخر من RECITERS)
-  // ملاحظة: القراء الأربعة أعلاه ليس لديهم تسجيل آية-بآية على alquran.cloud (تسجيلاتهم
-  // متوفرة سورة كاملة فقط)، لذلك يتفادى app.js استدعاء هذه الدالة لهم أصلاً (انظر
-  // isCustomAudioReciter و getSurahAudioURL) ويشغّل لهم ملف السورة الكاملة مباشرة
-  // بدل استبدال صوتهم بصوت قارئ آخر بصمت
+  // ملاحظة: لو القارئ من الثلاثة اللي عندهم رابط آية-بآية حقيقي في CUSTOM_AYAH_AUDIO،
+  // بيرجع رابطهم على طول من غير أي طلب شبكة زيادة. غيرهم (بما فيهم هيثم الدخين اللي
+  // معندوش تسجيل آية-بآية في أي مكان) بيكمل على alquran.cloud كالعادة
   async function getAyahAudio(surah, ayah, editionId) {
     const ed = editionId || 'ar.alafasy';
+    if (CUSTOM_AYAH_AUDIO[ed]) return CUSTOM_AYAH_AUDIO[ed](surah, ayah);
     const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/${ed}`, 24 * 365);
     return data.data.audio;
   }
