@@ -151,7 +151,9 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   border-bottom: 1.5px solid var(--gold);
   box-shadow: 0 1px 8px rgba(0,0,0,.12), 0 0 0 1px rgba(201,162,39,.06) inset;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* زر القائمة اتشال من تدفق الشبكة وبقى معلّق تحت الهيدر (شوف .menu-dot-btn)،
+     عشان ميبقاش تحت كاميرا الموبايل النافرة اللي بتتمركز فوق في نص الشاشة */
+  grid-template-columns: 1fr 1fr;
   align-items: center;
   padding-left: 10px;
   padding-right: 10px;
@@ -194,16 +196,31 @@ body.theme-night #header-context { color: var(--gold-soft); }
 .header-mini-btn svg { width: 15px; height: 15px; }
 .header-mini-btn.active { color: var(--gold-bright); }
 
-/* زر القائمة في منتصف الهيدر — أربع مربعات مسطّحة بطراز مودرن (بلا خلفية دائرية) */
+/* زر القائمة (أربع مربعات مسطّحة) — بقى معلّق تحت الهيدر في النص، زي دمعة/لسان
+   نازل منه، بدل ما يكون داخل صف الهيدر نفسه (اللي بقى تحت كاميرا الموبايل
+   النافرة في الأجهزة اللي عندها كاميرا فرونت في النص). شكله متصل بصريًا
+   بحافة الهيدر السفلية عن طريق نفس لون الورق وحدود الذهب، من غير حدّ علوي
+   حتى يبان مكمّل لحدّ الهيدر مش لاصق عليه */
 .menu-dot-btn {
-  width: 36px; height: 36px;
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: -1.5px; /* يلزق بحافة الهيدر الذهبية من غير ما تبان فجوة بينهم */
+  width: 46px;
+  height: 32px;
   display: flex; align-items: center; justify-content: center;
   color: var(--gold-deep);
-  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--paper-deep), var(--paper));
+  border: 1.5px solid var(--gold);
+  border-top: none;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 5px 10px rgba(0,0,0,.28), 0 0 0 1px rgba(201,162,39,.06) inset;
+  z-index: 1;
   transition: transform .15s, opacity .15s;
 }
-.menu-dot-btn svg { width: 21px; height: 21px; }
-.menu-dot-btn:active { transform: scale(.88); opacity: .75; }
+.menu-dot-btn svg { width: 20px; height: 20px; }
+.menu-dot-btn:active { transform: translateX(-50%) scale(.88); opacity: .75; }
 body.theme-night .menu-dot-btn { color: var(--gold-soft); }
 
 .icon-btn {

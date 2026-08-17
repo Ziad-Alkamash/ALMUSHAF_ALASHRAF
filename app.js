@@ -2087,9 +2087,30 @@
   function syncStatusBarClass() {
     document.body.classList.toggle('statusbar-hidden', isCurrentlyFullscreen());
     requestAnimationFrame(fitMushafPage);
+    // حل جذري لمشكلة رجوع شريط الحالة لما المستخدم يسيب التطبيق (تصغير/تبديل
+    // تطبيقات) ويرجعله تاني: المتصفح بيقفل ملء الشاشة تلقائيًا لما التطبيق
+    // يروح للخلفية (سلوك طبيعي من نظام التشغيل)، وساعتها بيوصل هنا حدث
+    // fullscreenchange بحالة "مش fullscreen". لو ده حصل من غير ما المستخدم
+    // يوقف الخيار بنفسه من الإعدادات (يعني تفضيله لسه "مفعّل")، بنعيد تسليح
+    // مستمع "أول لمسة" تاني عشان أول لمسة بعد الرجوع تطلب ملء الشاشة من
+    // جديد فورًا، بدل ما يفضل شريط الحالة ظاهر لحد ما يدخل الإعدادات يدويًا
+    if (!isCurrentlyFullscreen() && getFullscreenPref()) {
+      fullscreenGestureBound = false;
+      armFullscreenOnFirstTouch();
+    }
   }
   document.addEventListener('fullscreenchange', syncStatusBarClass);
   document.addEventListener('webkitfullscreenchange', syncStatusBarClass);
+
+  // طبقة حماية إضافية: بعض المتصفحات ممكن تتأخر في إطلاق fullscreenchange لحد
+  // ما التطبيق يرجع للواجهة فعليًا. فبنتأكد برضو عند رجوع التبويب/التطبيق
+  // للظهور (visibilitychange) إن مستمع "أول لمسة" مُسلَّح، بنفس المنطق أعلاه
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && getFullscreenPref() && !isCurrentlyFullscreen()) {
+      fullscreenGestureBound = false;
+      armFullscreenOnFirstTouch();
+    }
+  });
 
   let fullscreenGestureBound = false;
   function armFullscreenOnFirstTouch() {
