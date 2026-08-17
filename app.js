@@ -1171,6 +1171,11 @@
     let startX = 0, startY = 0, originLeft = 0, originTop = 0, dragging = false, pointerId = null;
 
     fab.addEventListener('pointerdown', (e) => {
+      // تعطيل السلوك الافتراضي هنا يمنع المتصفح من توليد "نقرة تعويضية" (compatibility
+      // click) بعد رفع الإصبع. بدون هذا كانت النقرة التعويضية تصل بعد ظهور الشريط
+      // مباشرة وتسقط فوق زرار "إيقاف التشغيل" في الشريط (لأنه بيظهر بالضبط في نفس
+      // مكان الزرار العائم افتراضيًا)، فيوقف الصوت فورًا بدل ما يفتح المشغّل فقط
+      e.preventDefault();
       const rect = fab.getBoundingClientRect();
       originLeft = rect.left;
       originTop = rect.top;
@@ -1401,6 +1406,12 @@
     function showBar() {
       bar.classList.remove('hidden', 'bar-minimized');
       if (showBarFab) showBarFab.classList.add('hidden');
+      // طبقة أمان إضافية: تعطيل استقبال النقر على الشريط للحظة عند ظهوره، حتى لو
+      // وصلت نقرة تعويضية متبقية من نفس لمسة الزرار العائم لا تسقط على زرار خطأ
+      // (مثل زرار الإيقاف) بمجرد ما يظهر الشريط في نفس مكان الزرار
+      bar.style.pointerEvents = 'none';
+      clearTimeout(showBar._guardTimer);
+      showBar._guardTimer = setTimeout(() => { bar.style.pointerEvents = ''; }, 350);
     }
 
     function minimizeBar() {
@@ -1467,7 +1478,9 @@
       state.playerMode = 'ayah';
       state.surahAudioSurah = surahNumber;
       state.surahAudioReciter = ed;
-      state.ayahPlayerAyahNum = fullFileOnly ? null : ayahNumber;
+      // القراء الأربعة اللي عندهم ملف سورة كاملة بس أيضًا بنتابع لهم رقم الآية الحالي
+      // تقريبيًا (عبر القفز التقريبي + التتبع أثناء التشغيل تحت)، بدل ما نسيبها فاضية
+      state.ayahPlayerAyahNum = ayahNumber;
 
       // لو المستخدم صغّر الشريط لزرار عائم يدويًا، إعادة تحميل الآية التالية أثناء
       // التشغيل المتواصل ما ينفعش يفتح الشريط تاني من تلقاء نفسه؛ بس أول مرة (لما
@@ -1478,39 +1491,50 @@
       if (barPlayBtn) barPlayBtn.innerHTML = '⏳';
 
       try {
-        if (fullFileOnly && ayahNumber !== 1) {
-          showToast(`تسجيلات ${reciterName(ed)} متاحة سورة كاملة فقط، هيبدأ التشغيل من أول السورة`);
+        // للقراء اللي ملفهم سورة كاملة بلا تسجيل آية-بآية حقيقي: نجيب مقدّمًا طول نص
+        // كل آية بالنسبة لإجمالي نص السورة، عشان نحسب موضع الآية المطلوبة كنسبة من
+        // الملف الصوتي ونقفز لها فورًا بدل ما يبدأ التشغيل من أول السورة دايمًا
+        let ayahLenList = null;
+        if (fullFileOnly) {
+          try { ayahLenList = await QuranAPI.getSurahAyahLengths(surahNumber); } catch (e) { ayahLenList = null; }
+          if (ayahNumber !== 1) {
+            showToast(`تسجيلات ${reciterName(ed)} سورة كاملة، هيبدأ من موضع هذه الآية تقريبًا داخل الملف`);
+          }
         }
+
         const url = fullFileOnly
           ? QuranAPI.getSurahAudioURL(surahNumber, ed)
           : await QuranAPI.getAyahAudio(surahNumber, ayahNumber, ed);
         // قد يكون المستخدم غيّر الوضع أثناء الانتظار (مثلاً ضغط إيقاف)
         if (state.playerMode !== 'ayah' || state.surahAudioSurah !== surahNumber) return;
-        if (!fullFileOnly && state.ayahPlayerAyahNum !== ayahNumber) return;
+        if (state.ayahPlayerAyahNum !== ayahNumber) return;
 
         state.surahAudioEl = new Audio(url);
         state.surahAudioEl.playbackRate = getPlayerRate();
         syncNowPlayingUI();
-        if (fullFileOnly) clearAyahHighlight();
-        else highlightPlayingAyah(surahNumber, ayahNumber);
+        highlightPlayingAyah(surahNumber, ayahNumber);
         updateMediaSessionMetadata();
 
-        // للقراء اللي ملفهم سورة كاملة بلا توقيت آية-بآية حقيقي: نقدّر تقريبيًا توقيت
-        // كل آية بالنسبة لطول نصها من إجمالي نص السورة، عشان تفضل الآية بتتحدد أثناء
-        // القراءة تقريبًا حتى مع هؤلاء القراء بدل ما يفضل التظليل واقف تمامًا طول السورة
+        // توقيت كل آية تقريبيًا (بالثواني) داخل الملف الكامل، محسوب بمجرد ما تُعرف
+        // مدة الملف؛ يُستخدم للقفز لموضع الآية المطلوبة وأيضًا لتتبّع الآية الحالية
+        // أثناء التشغيل (التظليل التلقائي) بدل ما يفضل واقف على نفس الآية طول السورة
         let ayahBounds = null;
-        if (fullFileOnly) {
-          QuranAPI.getSurahAyahLengths(surahNumber).then((list) => {
-            const dur = state.surahAudioEl && state.surahAudioEl.duration;
-            if (!list.length || !dur || state.surahAudioSurah !== surahNumber) return;
-            const totalLen = list.reduce((s, a) => s + a.length, 0) || 1;
-            let acc = 0;
-            ayahBounds = list.map((a) => {
-              const start = (acc / totalLen) * dur;
-              acc += a.length;
-              return { ayah: a.numberInSurah, start };
-            });
-          }).catch(() => { /* لو فشل الجلب، يفضل بدون تظليل تقريبي فقط */ });
+        let seekedToStart = false;
+        function computeBoundsAndSeek() {
+          const dur = state.surahAudioEl && state.surahAudioEl.duration;
+          if (!fullFileOnly || !ayahLenList || !ayahLenList.length || !dur || !isFinite(dur)) return;
+          const totalLen = ayahLenList.reduce((s, a) => s + a.length, 0) || 1;
+          let acc = 0;
+          ayahBounds = ayahLenList.map((a) => {
+            const start = (acc / totalLen) * dur;
+            acc += a.length;
+            return { ayah: a.numberInSurah, start };
+          });
+          if (!seekedToStart && ayahNumber > 1) {
+            const target = ayahBounds.find((b) => b.ayah === ayahNumber);
+            if (target) state.surahAudioEl.currentTime = target.start;
+          }
+          seekedToStart = true;
         }
 
         state.surahAudioEl.addEventListener('loadedmetadata', () => {
@@ -1519,6 +1543,7 @@
           if (overlaySeek) overlaySeek.max = dur;
           if (barTimeDuration) barTimeDuration.textContent = formatPlayerTime(dur);
           if (overlayDurationTime) overlayDurationTime.textContent = formatPlayerTime(dur);
+          computeBoundsAndSeek();
         });
         state.surahAudioEl.addEventListener('timeupdate', () => {
           if (!state.surahAudioEl) return;
@@ -1567,6 +1592,17 @@
           showToast('تعذّر تشغيل هذا التسجيل، تحقّق من الاتصال بالإنترنت');
           stopAudio();
         });
+
+        // لو محتاجين نقفز لموضع آية معينة داخل ملف السورة الكاملة، ننتظر وصول
+        // الميتاداتا (وتنفيذ القفز أعلاه) الأول قبل التشغيل، عشان المستخدم ميسمعش
+        // جزء من أول السورة قبل ما ينقفز الصوت فجأة لموضع الآية المطلوبة
+        if (fullFileOnly && ayahNumber > 1) {
+          await new Promise((resolve) => {
+            if (state.surahAudioEl.readyState >= 1) resolve();
+            else state.surahAudioEl.addEventListener('loadedmetadata', () => resolve(), { once: true });
+          });
+          if (state.playerMode !== 'ayah' || state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
+        }
 
         await state.surahAudioEl.play();
         updatePlayPauseIcons(true);
