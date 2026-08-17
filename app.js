@@ -1324,13 +1324,8 @@
     }
 
     /* -------- تظليل الآية التي يقرأها القارئ الآن في صفحة المصحف -------- */
-    // ملحوظة مهمة: التظليل هنا "سلبي" بالكامل — أي لا يغيّر الصفحة المعروضة أبدًا من
-    // تلقاء نفسه. لو الآية اللي بتتقرأ مش على الصفحة الحالية، ببساطة منسيبها من غير
-    // تظليل، ومنسيب المستخدم يقلّب بحرية تامة بالسحب في أي وقت (سواء الصوت شغال أو
-    // متوقف مؤقتًا). التظليل بيرجع يظهر تلقائيًا لوحده لما يوصل المستخدم بنفسه (بالسحب
-    // العادي) للصفحة اللي فيها الآية الحالية، لأن renderPageContent بتنادي
-    // reapplyAyahHighlight() في كل مرة تتحمّل فيها صفحة جديدة
     let lastHighlightedAyahEl = null;
+    let followPageInFlight = false;
     function clearAyahHighlight() {
       if (lastHighlightedAyahEl) {
         lastHighlightedAyahEl.classList.remove('ayah-playing');
@@ -1349,9 +1344,25 @@
         if (wrapRect && (rect.top < wrapRect.top || rect.bottom > wrapRect.bottom)) {
           target.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        return;
       }
-      // لو الآية مش على الصفحة المعروضة حاليًا: نتجاهل بهدوء بدون أي تنقّل تلقائي،
-      // حتى لا يصطدم هذا بتقليب المستخدم اليدوي للصفحات بالسحب.
+      // الآية مش على الصفحة المعروضة حاليًا. لو المستخدم فاتح تبويب "القرآن" فعلاً،
+      // نجيب رقم صفحتها وننقله لها تلقائيًا حتى تفضل الآية اللي بتتقرأ متحدّدة قدّامه
+      // (تتبّع تلقائي للقراءة)، بدل ما التظليل يفضل مش ظاهر إلا لو هو بيقلّب يدويًا
+      const quranView = $('#view-quran');
+      if (!followPageInFlight && quranView && quranView.classList.contains('active') && typeof QuranAPI !== 'undefined' && QuranAPI.getAyahPage) {
+        followPageInFlight = true;
+        QuranAPI.getAyahPage(surahNumber, ayahNumber)
+          .then((page) => {
+            followPageInFlight = false;
+            if (!page) return;
+            // تأكيد إن الآية دي لسه هي المشغّلة فعلاً (المستخدم ممكن يكون غيّر حاجة أثناء الجلب)
+            if (state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
+            if (state.currentPageData && state.currentPageData.pageNumber === page) return;
+            loadPage(page);
+          })
+          .catch(() => { followPageInFlight = false; });
+      }
     }
     // يُستدعى بعد إعادة رسم الصفحة (مثلاً عند التنقل بين صفحات المصحف أثناء التشغيل)
     // حتى تظل الآية الحالية مظلّلة إن كانت موجودة على الصفحة المعروضة الجديدة
@@ -2034,6 +2045,84 @@
     initOfflineDownload();
     initReciterSettings();
     initKhatmaTracking();
+    initFullscreenToggle();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* إخفاء شريط الحالة (Status Bar) أثناء تشغيل التطبيق، عبر واجهة       */
+  /* Fullscreen API القياسية في المتصفح، حتى يأخذ التطبيق مساحة الشريط  */
+  /* بالكامل. مفعّل تلقائيًا افتراضيًا، والمستخدم لو حب يلغيه يدخل        */
+  /* الإعدادات ويوقفه بنفسه.                                            */
+  /* ملحوظة: هذا يعمل على أندرويد (متصفحات Chromium) عند تشغيل التطبيق   */
+  /* كتطبيق مُثبَّت (PWA) من الشاشة الرئيسية. أما آيفون فمتصفح سفاري لا    */
+  /* يدعم إخفاء شريط الحالة فعليًا عبر الويب، فيكتفي التطبيق هناك برسم     */
+  /* المحتوى تحت الشريط (black-translucent) كما هو مضبوط بالفعل.         */
+  /* بما إن المتصفحات تشترط أن يكون طلب ملء الشاشة ناتجًا عن تفاعل مباشر  */
+  /* من المستخدم (لمسة/ضغطة)، فبنطلبه أول ما يلمس المستخدم الشاشة أول مرة */
+  /* -------------------------------------------------------------------*/
+  const FULLSCREEN_PREF_KEY = 'almus-hraf:hideStatusBar';
+  function getFullscreenPref() {
+    const raw = localStorage.getItem(FULLSCREEN_PREF_KEY);
+    return raw === null ? true : raw === '1'; // مفعّل افتراضيًا لو المستخدم ما غيّرش الإعداد قبل كده
+  }
+  function isFullscreenSupported() {
+    return !!(document.documentElement.requestFullscreen || document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  }
+  function requestAppFullscreen() {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { try { req.call(el).catch(() => {}); } catch (e) { /* تجاهل */ } }
+  }
+  function exitAppFullscreen() {
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!isFs) return;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) { try { exit.call(document).catch(() => {}); } catch (e) { /* تجاهل */ } }
+  }
+  let fullscreenGestureBound = false;
+  function armFullscreenOnFirstTouch() {
+    if (fullscreenGestureBound) return;
+    fullscreenGestureBound = true;
+    const tryOnce = () => {
+      document.removeEventListener('pointerdown', tryOnce, true);
+      if (getFullscreenPref() && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+        requestAppFullscreen();
+      }
+    };
+    document.addEventListener('pointerdown', tryOnce, true);
+  }
+  function initFullscreenToggle() {
+    const toggle = $('#toggle-fullscreen');
+    const sub = $('#fullscreen-sub');
+    if (!toggle) return;
+
+    if (!isFullscreenSupported()) {
+      toggle.checked = false;
+      toggle.disabled = true;
+      if (sub) sub.textContent = 'متصفحك أو جهازك لا يدعم إخفاء شريط الحالة حاليًا';
+      return;
+    }
+
+    const pref = getFullscreenPref();
+    toggle.checked = pref;
+    if (pref) {
+      // أول تفعيل للتطبيق (أو لو كان مفعّل من قبل): نحاول ملء الشاشة فورًا، وإلا
+      // ننتظر أول لمسة من المستخدم لأن المتصفحات تمنع طلب ملء الشاشة بدون تفاعل مباشر
+      requestAppFullscreen();
+      armFullscreenOnFirstTouch();
+    }
+
+    toggle.addEventListener('change', () => {
+      localStorage.setItem(FULLSCREEN_PREF_KEY, toggle.checked ? '1' : '0');
+      if (toggle.checked) {
+        requestAppFullscreen();
+        armFullscreenOnFirstTouch();
+        showToast('هيختفي شريط الحالة، ويأخذ التطبيق مساحته كاملة');
+      } else {
+        exitAppFullscreen();
+        showToast('تم إظهار شريط الحالة');
+      }
+    });
   }
 
   /* ---------------------------------------------------------------- */
@@ -2479,14 +2568,16 @@
   /* بالكامل تحتاج خادم دفع (Push Server) خارجي غير متوفر هنا.          */
   /* ---------------------------------------------------------------- */
   const REMINDERS_KEY = 'almus-hraf:reminders';
+  // كل التذكيرات مُفعَّلة تلقائيًا افتراضيًا (بمجرد ما المستخدم يوافق على إذن
+  // الإشعارات)، والمستخدم اللي حابب يلغي أي واحد منها يدخل الإعدادات ويوقفه بنفسه
   const DEFAULT_REMINDERS = {
-    sabah: { enabled: false, time: '06:00', lastSent: '' },
-    masaa: { enabled: false, time: '18:00', lastSent: '' },
-    kahf: { enabled: false, time: '08:00', lastSent: '' },
-    wird: { enabled: false, time: '21:00', lastSent: '' },
-    naom: { enabled: false, time: '22:00', lastSent: '' },
-    mayyit4h: { enabled: false, intervalMinutes: 240, lastSentAt: 0 },
-    prayers: { enabled: false, lastSent: {} }
+    sabah: { enabled: true, time: '06:00', lastSent: '' },
+    masaa: { enabled: true, time: '18:00', lastSent: '' },
+    kahf: { enabled: true, time: '08:00', lastSent: '' },
+    wird: { enabled: true, time: '21:00', lastSent: '' },
+    naom: { enabled: true, time: '22:00', lastSent: '' },
+    mayyit4h: { enabled: true, intervalMinutes: 30, lastSentAt: 0 },
+    prayers: { enabled: true, lastSent: {} }
   };
 
   function getReminderSettings() {
@@ -2704,7 +2795,7 @@
     const mayyitValueInput = $('#mayyit-interval-value');
     const mayyitUnitSelect = $('#mayyit-interval-unit');
     if (mayyitToggle) {
-      if (!settings.mayyit4h) settings.mayyit4h = { enabled: false, intervalMinutes: 240, lastSentAt: 0 };
+      if (!settings.mayyit4h) settings.mayyit4h = { enabled: true, intervalMinutes: 30, lastSentAt: 0 };
       if (!settings.mayyit4h.intervalMinutes) settings.mayyit4h.intervalMinutes = 240;
 
       mayyitToggle.checked = !!settings.mayyit4h.enabled;
@@ -2731,7 +2822,7 @@
 
       mayyitToggle.onchange = () => {
         const s = getReminderSettings();
-        if (!s.mayyit4h) s.mayyit4h = { enabled: false, intervalMinutes: 240, lastSentAt: 0 };
+        if (!s.mayyit4h) s.mayyit4h = { enabled: true, intervalMinutes: 30, lastSentAt: 0 };
         s.mayyit4h.enabled = mayyitToggle.checked;
         if (mayyitToggle.checked) s.mayyit4h.lastSentAt = Date.now(); // أول تذكير بعد فترة كاملة من التفعيل
         saveReminderSettings(s);
@@ -2746,7 +2837,7 @@
       if (mayyitValueInput && mayyitUnitSelect) {
         const onIntervalChange = () => {
           const s = getReminderSettings();
-          if (!s.mayyit4h) s.mayyit4h = { enabled: false, intervalMinutes: 240, lastSentAt: 0 };
+          if (!s.mayyit4h) s.mayyit4h = { enabled: true, intervalMinutes: 30, lastSentAt: 0 };
           s.mayyit4h.intervalMinutes = currentIntervalMinutes();
           s.mayyit4h.lastSentAt = Date.now(); // إعادة ضبط العد التنازلي من الآن بالفترة الجديدة
           saveReminderSettings(s);
@@ -2760,13 +2851,13 @@
     // تذكير مواقيت الصلاة الخمس: مفتاح تفعيل فقط بلا وقت يدوي (يعتمد على المواقيت المجلوبة تلقائيًا)
     const prayersToggle = $('#toggle-prayers');
     if (prayersToggle) {
-      if (!settings.prayers) settings.prayers = { enabled: false, lastSent: {} };
+      if (!settings.prayers) settings.prayers = { enabled: true, lastSent: {} };
       prayersToggle.checked = !!settings.prayers.enabled;
       prayersToggle.disabled = !permGranted;
 
       prayersToggle.onchange = () => {
         const s = getReminderSettings();
-        if (!s.prayers) s.prayers = { enabled: false, lastSent: {} };
+        if (!s.prayers) s.prayers = { enabled: true, lastSent: {} };
         s.prayers.enabled = prayersToggle.checked;
         saveReminderSettings(s);
         checkReminders();

@@ -562,7 +562,7 @@
           <div class="settings-control">
             <input type="time" id="time-sabah" class="time-input" value="06:00">
             <label class="switch">
-              <input type="checkbox" id="toggle-sabah">
+              <input type="checkbox" id="toggle-sabah" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -579,7 +579,7 @@
           <div class="settings-control">
             <input type="time" id="time-masaa" class="time-input" value="18:00">
             <label class="switch">
-              <input type="checkbox" id="toggle-masaa">
+              <input type="checkbox" id="toggle-masaa" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -596,7 +596,7 @@
           <div class="settings-control">
             <input type="time" id="time-kahf" class="time-input" value="08:00">
             <label class="switch">
-              <input type="checkbox" id="toggle-kahf">
+              <input type="checkbox" id="toggle-kahf" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -612,7 +612,7 @@
           </div>
           <div class="settings-control">
             <label class="switch">
-              <input type="checkbox" id="toggle-prayers">
+              <input type="checkbox" id="toggle-prayers" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -629,7 +629,7 @@
           <div class="settings-control">
             <input type="time" id="time-wird" class="time-input" value="21:00">
             <label class="switch">
-              <input type="checkbox" id="toggle-wird">
+              <input type="checkbox" id="toggle-wird" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -646,7 +646,7 @@
           <div class="settings-control">
             <input type="time" id="time-naom" class="time-input" value="22:00">
             <label class="switch">
-              <input type="checkbox" id="toggle-naom">
+              <input type="checkbox" id="toggle-naom" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -662,14 +662,14 @@
           </div>
           <div class="settings-control">
             <div class="interval-control">
-              <input type="number" id="mayyit-interval-value" class="interval-num-input" min="1" max="999" value="4" inputmode="numeric">
+              <input type="number" id="mayyit-interval-value" class="interval-num-input" min="1" max="999" value="30" inputmode="numeric">
               <select id="mayyit-interval-unit" class="interval-unit-select">
                 <option value="hours">ساعة</option>
-                <option value="minutes">دقيقة</option>
+                <option value="minutes" selected>دقيقة</option>
               </select>
             </div>
             <label class="switch">
-              <input type="checkbox" id="toggle-mayyit4h">
+              <input type="checkbox" id="toggle-mayyit4h" checked>
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -735,6 +735,22 @@
     <div class="settings-section">
       <h4 class="settings-section-title">القراءة والمظهر</h4>
       <div class="settings-card">
+        <div class="settings-card-row">
+          <div class="settings-card-label">
+            <span class="settings-card-icon">📱</span>
+            <div class="settings-card-text">
+              <span class="settings-card-title">إخفاء شريط الحالة</span>
+              <span class="settings-card-sub" id="fullscreen-sub">يأخذ التطبيق مساحة شريط الحالة كاملة أثناء التشغيل</span>
+            </div>
+          </div>
+          <div class="settings-control">
+            <label class="switch">
+              <input type="checkbox" id="toggle-fullscreen" checked>
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
         <div class="settings-card-row">
           <div class="settings-card-label">
             <span class="settings-card-icon">🔠</span>
