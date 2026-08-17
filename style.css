@@ -450,6 +450,11 @@ body.theme-night .mushaf-surah-divider-name {
 }
 .ayah:hover, .ayah:active { background: rgba(201, 162, 39, .18); }
 .ayah-highlight { background: rgba(201, 162, 39, .45) !important; }
+/* الآية التي يقرأها القارئ حاليًا أثناء تشغيل الصوت — تبقى مظلّلة طول مدة قراءتها */
+.ayah-playing {
+  background: rgba(201, 162, 39, .28) !important;
+  box-shadow: inset 0 0 0 1px rgba(201,162,39,.4);
+}
 .ayah-marker {
   position: relative;
   display: inline-flex;
@@ -1228,79 +1233,147 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
 }
 .reciter-choices .chip-btn { font-size: 12.5px; }
 
-/* -------- شريط تشغيل السورة كاملة / الاستماع المتواصل بالآيات -------- */
-.surah-audio-bar {
+/* -------- المشغّل الصوتي المصغّر (بطاقة كريمية تتبع تصميم Golden Quran) -------- */
+.gp-bar {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom) + 96px);
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 24px);
   max-width: 530px;
-  background: linear-gradient(165deg, rgba(13, 66, 52, .92), rgba(6, 41, 31, .96));
-  border: 1px solid rgba(234, 201, 108, .35);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  border-radius: 20px;
-  padding: 12px 14px 13px;
+  background: linear-gradient(170deg, var(--paper), var(--paper-deep));
+  border: 1px solid var(--gold);
+  border-radius: 18px;
+  padding: 10px 14px 12px;
   z-index: 98;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(234,201,108,.05) inset;
+  box-shadow: 0 10px 28px rgba(0,0,0,.28), 0 0 0 1px rgba(201,162,39,.08) inset;
   transition: opacity .3s ease, transform .3s ease;
 }
-.surah-audio-bar.hidden,
-.surah-audio-bar.bar-minimized {
+.gp-bar.hidden,
+.gp-bar.bar-minimized {
   opacity: 0;
   transform: translate(-50%, 20px);
   pointer-events: none;
 }
-.surah-audio-top {
+
+.gp-top-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
-.surah-audio-disc {
-  width: 34px; height: 34px;
-  border-radius: 50%;
+.gp-emblem {
+  width: 26px; height: 26px;
+  border-radius: 7px;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold-deep));
+  background: linear-gradient(150deg, var(--gold-bright), var(--gold-deep));
   color: var(--emerald);
-  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
 }
-.surah-audio-disc svg { width: 17px; height: 17px; }
-.surah-audio-disc.spinning { animation: player-disc-spin 6s linear infinite; }
-.surah-audio-info {
+.gp-emblem svg { width: 15px; height: 15px; }
+.gp-emblem.spinning { animation: player-disc-spin 6s linear infinite; }
+.gp-title-tap {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  color: var(--gold-soft);
+  text-align: right;
 }
-.surah-audio-info span:first-child {
+.gp-title {
   font-family: var(--font-display);
-  font-size: 14.5px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--mushaf-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
 }
-.surah-audio-reciter { font-size: 11px; color: rgba(234,201,108,.65); }
-.surah-audio-playpause {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(150deg, var(--gold-bright), var(--gold));
-  color: var(--emerald);
+.gp-tiny-btn {
+  width: 26px; height: 26px;
   flex-shrink: 0;
-  box-shadow: 0 3px 10px rgba(201,162,39,.35);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft);
+  border-radius: 50%;
 }
-.surah-audio-playpause svg { width: 16px; height: 16px; }
-.surah-audio-bar .icon-btn { width: 28px; height: 28px; color: rgba(234,201,108,.85); }
-.surah-audio-bar .icon-btn:hover, .surah-audio-bar .icon-btn:active { background: rgba(234,201,108,.14); }
-.surah-audio-seek {
+.gp-tiny-btn svg { width: 14px; height: 14px; }
+.gp-tiny-btn:hover, .gp-tiny-btn:active { background: rgba(201,162,39,.14); }
+
+.gp-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 2px;
+  width: 100%;
+  background: none;
+}
+.gp-reciter {
+  font-size: 12.5px;
+  color: var(--gold-deep);
+  font-weight: 600;
+}
+.gp-headphone { width: 13px; height: 13px; color: var(--ink-soft); opacity: .8; }
+.gp-time {
+  font-size: 12px;
+  color: var(--ink-soft);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.gp-seek {
   width: 100%;
   height: 3px;
-  margin-top: 9px;
-  accent-color: var(--gold-bright);
+  margin-top: 8px;
+  accent-color: var(--gold-deep);
 }
+
+.gp-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 8px;
+}
+.gp-speed-btn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold-deep);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 4px 9px;
+  flex-shrink: 0;
+}
+.gp-speed-btn:active { background: rgba(201,162,39,.16); }
+.gp-icon-btn {
+  width: 32px; height: 32px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft);
+  border-radius: 50%;
+}
+.gp-icon-btn svg { width: 17px; height: 17px; }
+.gp-icon-btn:hover, .gp-icon-btn:active { background: rgba(201,162,39,.14); }
+.gp-play-btn {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, var(--gold-bright), var(--gold-deep));
+  color: var(--emerald);
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(201,162,39,.4);
+}
+.gp-play-btn svg { width: 20px; height: 20px; }
+.gp-stop-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ruby);
+  border: 1.5px solid var(--ruby);
+}
+.gp-stop-btn svg { width: 13px; height: 13px; }
+.gp-stop-btn:active { background: rgba(122,35,49,.14); }
+
+body.theme-night .gp-bar { background: linear-gradient(170deg, var(--paper-deep), var(--paper)); }
 
 /* زرار عائم لإظهار المشغّل بعد إخفائه أثناء القراءة — قابل للسحب لأي مكان بالشاشة */
 .show-player-fab {

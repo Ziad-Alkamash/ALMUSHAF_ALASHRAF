@@ -117,6 +117,13 @@
     <symbol id="icon-skip-forward" viewBox="0 0 24 24">
       <path d="M6 5v14l11-7z"/><rect x="16.6" y="5" width="2.4" height="14"/>
     </symbol>
+    <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+    <symbol id="icon-rewind" viewBox="0 0 24 24">
+      <path d="M12.5 5v14l-11-7z"/><path d="M23 5v14l-11-7z"/>
+    </symbol>
+    <symbol id="icon-fast-forward" viewBox="0 0 24 24">
+      <path d="M11.5 5v14l11-7z"/><path d="M1 5v14l11-7z"/>
+    </symbol>
     <symbol id="icon-headphones" viewBox="0 0 24 24">
       <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 14v-2a8 8 0 0116 0v2"/>
       <rect x="3" y="14" width="4.5" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -838,35 +845,52 @@
   </div>
 </div>
 
-<!-- شريط تشغيل تلاوة السورة كاملة (مشغّل مصغّر) -->
-<div id="surah-audio-bar" class="surah-audio-bar hidden">
-  <div class="surah-audio-top">
-    <div class="surah-audio-disc" id="surah-audio-mini-disc">
-      <svg><use href="#icon-headphones"></use></svg>
-    </div>
-    <button class="surah-audio-tap-area" id="surah-audio-expand" aria-label="فتح المشغّل الكامل">
-      <div class="surah-audio-info">
-        <span id="surah-audio-title">--</span>
-        <span id="surah-audio-reciter" class="surah-audio-reciter">--</span>
-      </div>
+<!-- شريط تشغيل تلاوة السورة (مشغّل مصغّر) -->
+<div id="surah-audio-bar" class="gp-bar hidden">
+  <div class="gp-top-row">
+    <div class="gp-emblem" id="surah-audio-mini-disc"><svg><use href="#icon-book"></use></svg></div>
+    <button class="gp-title-tap" id="surah-audio-expand" aria-label="فتح المشغّل الكامل">
+      <span id="surah-audio-title" class="gp-title">--</span>
     </button>
-    <button id="surah-audio-prev" class="icon-btn" aria-label="السابق">
-      <svg><use href="#icon-skip-back"></use></svg>
-    </button>
-    <button id="surah-audio-playpause" class="surah-audio-playpause" aria-label="تشغيل/إيقاف">
-      <svg><use href="#icon-play"></use></svg>
-    </button>
-    <button id="surah-audio-next" class="icon-btn" aria-label="التالي">
-      <svg><use href="#icon-skip-forward"></use></svg>
-    </button>
-    <button id="surah-audio-hide" class="icon-btn" aria-label="إخفاء الشريط">
+    <button id="surah-audio-hide" class="gp-tiny-btn" aria-label="إخفاء الشريط">
       <svg><use href="#icon-chevron-down"></use></svg>
     </button>
-    <button id="surah-audio-close" class="icon-btn" aria-label="إغلاق المشغّل">
+    <button id="surah-audio-close" class="gp-tiny-btn" aria-label="إغلاق المشغّل">
       <svg><use href="#icon-close"></use></svg>
     </button>
   </div>
-  <input type="range" id="surah-audio-seek" class="surah-audio-seek" min="0" max="100" value="0">
+
+  <div class="gp-meta-row">
+    <span id="surah-audio-reciter" class="gp-reciter">--</span>
+    <svg class="gp-headphone"><use href="#icon-headphones"></use></svg>
+    <span class="gp-time">
+      <span id="surah-audio-time-current">٠:٠٠</span> / <span id="surah-audio-time-duration">٠:٠٠</span>
+    </span>
+  </div>
+
+  <input type="range" id="surah-audio-seek" class="gp-seek" min="0" max="100" value="0">
+
+  <div class="gp-controls">
+    <button id="surah-audio-speed" class="gp-speed-btn" aria-label="سرعة التشغيل">1×</button>
+    <button id="surah-audio-jump-start" class="gp-icon-btn" aria-label="أول السورة">
+      <svg><use href="#icon-skip-back"></use></svg>
+    </button>
+    <button id="surah-audio-prev" class="gp-icon-btn" aria-label="إرجاع 10 ثوانٍ">
+      <svg><use href="#icon-rewind"></use></svg>
+    </button>
+    <button id="surah-audio-playpause" class="gp-play-btn" aria-label="تشغيل/إيقاف">
+      <svg><use href="#icon-play"></use></svg>
+    </button>
+    <button id="surah-audio-next" class="gp-icon-btn" aria-label="تقديم 10 ثوانٍ">
+      <svg><use href="#icon-fast-forward"></use></svg>
+    </button>
+    <button id="surah-audio-jump-end" class="gp-icon-btn" aria-label="الآية التالية">
+      <svg><use href="#icon-skip-forward"></use></svg>
+    </button>
+    <button id="surah-audio-stop" class="gp-stop-btn" aria-label="إيقاف التشغيل">
+      <svg><use href="#icon-stop"></use></svg>
+    </button>
+  </div>
 </div>
 
 <!-- زرار عائم صغير لإرجاع شريط المشغّل بعد إخفائه — يمكن سحبه لأي مكان بالشاشة -->

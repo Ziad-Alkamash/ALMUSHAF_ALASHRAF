@@ -478,6 +478,11 @@
 
     container.innerHTML = '';
     container.appendChild(frag);
+
+    // إن كان الصوت شغالًا حاليًا، ظلّل الآية الحالية إن كانت موجودة على هذه الصفحة الجديدة
+    if (window.__playerControls && window.__playerControls.reapplyAyahHighlight) {
+      window.__playerControls.reapplyAyahHighlight();
+    }
   }
 
   /* ---------------------------------------------------------------- */
@@ -1221,8 +1226,14 @@
     const barCloseBtn = $('#surah-audio-close');
     const barHideBtn = $('#surah-audio-hide');
     const barSeek = $('#surah-audio-seek');
-    const barPrevBtn = $('#surah-audio-prev');
-    const barNextBtn = $('#surah-audio-next');
+    const barPrevBtn = $('#surah-audio-prev');   // إرجاع ١٠ ثوانٍ
+    const barNextBtn = $('#surah-audio-next');   // تقديم ١٠ ثوانٍ
+    const barJumpStartBtn = $('#surah-audio-jump-start'); // الآية السابقة
+    const barJumpEndBtn = $('#surah-audio-jump-end');     // الآية التالية
+    const barStopBtn = $('#surah-audio-stop');
+    const barSpeedBtn = $('#surah-audio-speed');
+    const barTimeCurrent = $('#surah-audio-time-current');
+    const barTimeDuration = $('#surah-audio-time-duration');
     const barExpandBtn = $('#surah-audio-expand');
     const barMiniDisc = $('#surah-audio-mini-disc');
     const showBarFab = $('#btn-show-player-bar');
@@ -1263,22 +1274,19 @@
       if (overlayPlayBtn) overlayPlayBtn.innerHTML = icon;
       if (overlayDisc) overlayDisc.classList.toggle('spinning', playing);
       if (barMiniDisc) barMiniDisc.classList.toggle('spinning', playing);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
     }
 
     function syncNowPlayingUI() {
       const num = state.surahAudioSurah;
-      const mode = state.playerMode;
       const ed = state.surahAudioReciter || getSelectedReciter();
 
-      let barTitle = '--';
-      let overlayTitle = 'اختر سورة لتبدأ الاستماع';
-      if (num && mode === 'ayah') {
-        barTitle = `سورة ${surahNameByNumber(num)} — آية ${toArabicDigits(state.ayahPlayerAyahNum || 1)}`;
-        overlayTitle = barTitle;
-      } else if (num) {
-        barTitle = `سورة ${surahNameByNumber(num)}`;
-        overlayTitle = barTitle;
-      }
+      // شريط المشغّل المصغّر يعرض اسم السورة فقط (كتصميم "المصحف الذهبي")؛
+      // نافذة المشغّل الكامل تضيف رقم الآية الحالية لأنها معلومة مفيدة هناك
+      const barTitle = num ? `سورة ${surahNameByNumber(num)}` : '--';
+      const overlayTitle = num
+        ? `سورة ${surahNameByNumber(num)}${state.ayahPlayerAyahNum ? ' — آية ' + toArabicDigits(state.ayahPlayerAyahNum) : ''}`
+        : 'اختر سورة لتبدأ الاستماع';
 
       if (barTitleEl) barTitleEl.textContent = barTitle;
       if (barReciterEl) barReciterEl.textContent = num ? reciterName(ed) : '--';
@@ -1286,10 +1294,88 @@
       if (overlayReciterEl) overlayReciterEl.textContent = num ? reciterName(ed) : '--';
 
       $$('.surah-item.player-playing', $('#player-surah-list')).forEach((el) => el.classList.remove('player-playing'));
-      if (num && mode !== 'ayah') {
+      if (num) {
         const activeItem = $(`.surah-item[data-num="${num}"]`, $('#player-surah-list'));
         if (activeItem) activeItem.classList.add('player-playing');
       }
+    }
+
+    /* -------- سرعة التشغيل -------- */
+    const PLAYER_RATE_KEY = 'almus-hraf:playerRate';
+    const PLAYER_RATES = [1, 1.25, 1.5, 2, 0.75];
+    function getPlayerRate() {
+      const saved = Number(localStorage.getItem(PLAYER_RATE_KEY));
+      return PLAYER_RATES.includes(saved) ? saved : 1;
+    }
+    function formatRateLabel(rate) {
+      return (rate === 1 ? '1' : String(rate).replace(/^0\./, '.')) + '×';
+    }
+    function cyclePlayerRate() {
+      const idx = PLAYER_RATES.indexOf(getPlayerRate());
+      const next = PLAYER_RATES[(idx + 1) % PLAYER_RATES.length];
+      localStorage.setItem(PLAYER_RATE_KEY, String(next));
+      if (barSpeedBtn) barSpeedBtn.textContent = formatRateLabel(next);
+      if (state.surahAudioEl) state.surahAudioEl.playbackRate = next;
+    }
+
+    /* -------- تظليل الآية التي يقرأها القارئ الآن في صفحة المصحف -------- */
+    let lastHighlightedAyahEl = null;
+    function clearAyahHighlight() {
+      if (lastHighlightedAyahEl) {
+        lastHighlightedAyahEl.classList.remove('ayah-playing');
+        lastHighlightedAyahEl = null;
+      }
+    }
+    function highlightPlayingAyah(surahNumber, ayahNumber) {
+      clearAyahHighlight();
+      const target = $(`.ayah[data-surah="${surahNumber}"][data-ayah="${ayahNumber}"]`);
+      if (!target) return; // الآية على صفحة أخرى غير المعروضة حاليًا، لا شيء نظلّله
+      target.classList.add('ayah-playing');
+      lastHighlightedAyahEl = target;
+      const rect = target.getBoundingClientRect();
+      const wrap = $('#mushaf-wrap');
+      const wrapRect = wrap && wrap.getBoundingClientRect();
+      if (wrapRect && (rect.top < wrapRect.top || rect.bottom > wrapRect.bottom)) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    // يُستدعى بعد إعادة رسم الصفحة (مثلاً عند التنقل بين صفحات المصحف أثناء التشغيل)
+    // حتى تظل الآية الحالية مظلّلة إن كانت موجودة على الصفحة المعروضة الجديدة
+    function reapplyAyahHighlight() {
+      if (state.playerMode === 'ayah' && state.surahAudioSurah && state.ayahPlayerAyahNum) {
+        highlightPlayingAyah(state.surahAudioSurah, state.ayahPlayerAyahNum);
+      }
+    }
+
+    /* -------- Media Session: عناصر تحكم على شاشة القفل ومركز التنبيهات، -------- */
+    /* -------- وهي أيضًا ما يسمح للصوت بالاستمرار أثناء تصغير التطبيق   -------- */
+    function updateMediaSessionMetadata() {
+      if (!('mediaSession' in navigator)) return;
+      const num = state.surahAudioSurah;
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: num ? `سورة ${surahNameByNumber(num)}` : 'المصحف الأشرف',
+        artist: num ? reciterName(state.surahAudioReciter || getSelectedReciter()) : '',
+        album: 'المصحف الأشرف',
+        artwork: [
+          { src: './icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: './icon-512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      });
+    }
+    function initMediaSessionHandlers() {
+      if (!('mediaSession' in navigator)) return;
+      navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('previoustrack', () => goPrevTransport());
+      navigator.mediaSession.setActionHandler('nexttrack', () => goNextTransport());
+      navigator.mediaSession.setActionHandler('seekbackward', () => seekBy(-10));
+      navigator.mediaSession.setActionHandler('seekforward', () => seekBy(10));
+      try { navigator.mediaSession.setActionHandler('stop', () => stopAudio()); } catch (e) { /* غير مدعوم في بعض المتصفحات */ }
+    }
+    function seekBy(delta) {
+      if (!state.surahAudioEl) return;
+      const dur = state.surahAudioEl.duration || Infinity;
+      state.surahAudioEl.currentTime = Math.min(Math.max(0, state.surahAudioEl.currentTime + delta), dur);
     }
 
     function showBar() {
@@ -1311,6 +1397,7 @@
       state.surahAudioReciter = null;
       state.playerMode = null;
       state.ayahPlayerAyahNum = null;
+      clearAyahHighlight();
       bar.classList.add('hidden');
       bar.classList.remove('bar-minimized');
       if (showBarFab) showBarFab.classList.add('hidden');
@@ -1319,64 +1406,21 @@
       syncNowPlayingUI();
       if (barSeek) barSeek.value = 0;
       if (overlaySeek) overlaySeek.value = 0;
+      if (barTimeCurrent) barTimeCurrent.textContent = '٠:٠٠';
+      if (barTimeDuration) barTimeDuration.textContent = '٠:٠٠';
       if (overlayCurrentTime) overlayCurrentTime.textContent = '٠:٠٠';
       if (overlayDurationTime) overlayDurationTime.textContent = '٠:٠٠';
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+        navigator.mediaSession.metadata = null;
+      }
     }
 
+    // تشغيل سورة كاملة = تشغيل متتابع آية بآية بدءًا من الآية الأولى. اعتمدنا هذه
+    // الطريقة (بدل ملف صوتي واحد للسورة كلها) لأنها الوحيدة التي تتيح تحديد الآية
+    // التي يقرأها القارئ الآن أوتوماتيكيًا في صفحة المصحف، ولأنها تعمل مع كل القرّاء
     function playSurah(surahNumber) {
-      // إيقاف صوت الآية المفردة إن كان يعمل، تجنبًا لتداخل صوتين معًا
-      if (state.audioEl) { state.audioEl.pause(); }
-      if (state.surahAudioEl) { state.surahAudioEl.pause(); }
-
-      const ed = getSelectedReciter();
-      state.playerMode = 'surah';
-      state.ayahPlayerAyahNum = null;
-      state.surahAudioSurah = surahNumber;
-      state.surahAudioReciter = ed;
-      state.surahAudioEl = new Audio(QuranAPI.getSurahAudioURL(surahNumber, ed));
-
-      showBar();
-      if (headerBtn) headerBtn.classList.add('active');
-      syncNowPlayingUI();
-
-      state.surahAudioEl.addEventListener('loadedmetadata', () => {
-        const dur = Math.floor(state.surahAudioEl.duration) || 0;
-        if (barSeek) barSeek.max = dur;
-        if (overlaySeek) overlaySeek.max = dur;
-        if (overlayDurationTime) overlayDurationTime.textContent = formatPlayerTime(dur);
-      });
-      state.surahAudioEl.addEventListener('timeupdate', () => {
-        if (!state.surahAudioEl) return;
-        const cur = Math.floor(state.surahAudioEl.currentTime);
-        if (barSeek) barSeek.value = cur;
-        if (overlaySeek) overlaySeek.value = cur;
-        if (overlayCurrentTime) overlayCurrentTime.textContent = formatPlayerTime(cur);
-      });
-      state.surahAudioEl.addEventListener('ended', () => {
-        if (isPlayerContinuous()) {
-          const nextNum = surahNumber >= 114 ? 1 : surahNumber + 1;
-          playSurah(nextNum);
-          showToast(`الآن يُشغَّل: سورة ${surahNameByNumber(nextNum)}`);
-        } else {
-          updatePlayPauseIcons(false);
-        }
-      });
-      state.surahAudioEl.addEventListener('error', () => {
-        if (state.playerMode === 'surah' && state.surahAudioSurah === surahNumber) {
-          playAyahContinuous(surahNumber, 1);
-        }
-      });
-
-      state.surahAudioEl.play().then(() => {
-        updatePlayPauseIcons(true);
-      }).catch(() => {
-        // بعض القرّاء ليس لديهم ملف صوتي كامل للسورة على خادم الملفات المباشر
-        // (يعمل هذا مع الشيخ العفاسي فقط)، فنرجع تلقائيًا لتشغيل السورة آية
-        // بآية عبر نفس آلية "الاستماع المتواصل من آية معينة" التي تعمل مع كل القرّاء
-        if (state.playerMode === 'surah' && state.surahAudioSurah === surahNumber) {
-          playAyahContinuous(surahNumber, 1);
-        }
-      });
+      playAyahContinuous(surahNumber, 1);
     }
 
     /* -------- وضع الاستماع المتواصل من آية معينة، آية بعد آية بلا توقف -------- */
@@ -1410,12 +1454,16 @@
         if (state.playerMode !== 'ayah' || state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
 
         state.surahAudioEl = new Audio(url);
+        state.surahAudioEl.playbackRate = getPlayerRate();
         syncNowPlayingUI();
+        highlightPlayingAyah(surahNumber, ayahNumber);
+        updateMediaSessionMetadata();
 
         state.surahAudioEl.addEventListener('loadedmetadata', () => {
           const dur = Math.floor(state.surahAudioEl.duration) || 0;
           if (barSeek) barSeek.max = dur;
           if (overlaySeek) overlaySeek.max = dur;
+          if (barTimeDuration) barTimeDuration.textContent = formatPlayerTime(dur);
           if (overlayDurationTime) overlayDurationTime.textContent = formatPlayerTime(dur);
         });
         state.surahAudioEl.addEventListener('timeupdate', () => {
@@ -1423,6 +1471,7 @@
           const cur = Math.floor(state.surahAudioEl.currentTime);
           if (barSeek) barSeek.value = cur;
           if (overlaySeek) overlaySeek.value = cur;
+          if (barTimeCurrent) barTimeCurrent.textContent = formatPlayerTime(cur);
           if (overlayCurrentTime) overlayCurrentTime.textContent = formatPlayerTime(cur);
         });
         state.surahAudioEl.addEventListener('ended', () => {
@@ -1430,8 +1479,10 @@
           let nextSurah = surahNumber;
           let nextAyah = ayahNumber + 1;
           if (count && nextAyah > count) {
+            if (!isPlayerContinuous()) { stopAudio(); return; }
             nextSurah = surahNumber >= 114 ? 1 : surahNumber + 1;
             nextAyah = 1;
+            showToast(`الآن يُشغَّل: سورة ${surahNameByNumber(nextSurah)}`);
           }
           playAyahContinuous(nextSurah, nextAyah);
         });
@@ -1492,7 +1543,7 @@
     // تعريض الدوال لبقية التطبيق (نافذة اختيار السور وزر الرئيسية وقائمة خيارات الآية)
     window.__playerControls = {
       playSurah, togglePlayPause, stopAudio, playAdjacentSurah, syncNowPlayingUI,
-      playAyahContinuous, playAdjacentAyah
+      playAyahContinuous, playAdjacentAyah, reapplyAyahHighlight
     };
 
     if (headerBtn) {
@@ -1510,12 +1561,23 @@
 
     if (barPlayBtn) barPlayBtn.addEventListener('click', togglePlayPause);
     if (overlayPlayBtn) overlayPlayBtn.addEventListener('click', togglePlayPause);
-    if (barPrevBtn) barPrevBtn.addEventListener('click', goPrevTransport);
-    if (barNextBtn) barNextBtn.addEventListener('click', goNextTransport);
+    // ◀◀ / ▶▶ في الشريط المصغّر: إرجاع/تقديم ١٠ ثوانٍ داخل نفس الآية
+    if (barPrevBtn) barPrevBtn.addEventListener('click', () => seekBy(-10));
+    if (barNextBtn) barNextBtn.addEventListener('click', () => seekBy(10));
+    // |◀ / ▶| في الشريط المصغّر: الانتقال للآية السابقة/التالية
+    if (barJumpStartBtn) barJumpStartBtn.addEventListener('click', goPrevTransport);
+    if (barJumpEndBtn) barJumpEndBtn.addEventListener('click', goNextTransport);
+    if (barStopBtn) barStopBtn.addEventListener('click', stopAudio);
+    if (barSpeedBtn) {
+      barSpeedBtn.textContent = formatRateLabel(getPlayerRate());
+      barSpeedBtn.addEventListener('click', cyclePlayerRate);
+    }
     if (overlayPrevBtn) overlayPrevBtn.addEventListener('click', goPrevTransport);
     if (overlayNextBtn) overlayNextBtn.addEventListener('click', goNextTransport);
     if (barCloseBtn) barCloseBtn.addEventListener('click', stopAudio);
     if (barExpandBtn) barExpandBtn.addEventListener('click', openPlayerOverlay);
+
+    initMediaSessionHandlers();
 
     // إخفاء الشريط مؤقتًا أثناء القراءة، وإظهاره من الزرار العائم فقط
     if (barHideBtn) barHideBtn.addEventListener('click', minimizeBar);
