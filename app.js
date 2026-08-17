@@ -2068,24 +2068,36 @@
   function isFullscreenSupported() {
     return !!(document.documentElement.requestFullscreen || document.fullscreenEnabled || document.webkitFullscreenEnabled);
   }
+  function isCurrentlyFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
   function requestAppFullscreen() {
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen;
     if (req) { try { req.call(el).catch(() => {}); } catch (e) { /* تجاهل */ } }
   }
   function exitAppFullscreen() {
-    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-    if (!isFs) return;
+    if (!isCurrentlyFullscreen()) return;
     const exit = document.exitFullscreen || document.webkitExitFullscreen;
     if (exit) { try { exit.call(document).catch(() => {}); } catch (e) { /* تجاهل */ } }
   }
+  // نعكس الحالة الفعلية لملء الشاشة (مش مجرد تفضيل المستخدم) على body، حتى يتقلّص
+  // الهيدر لحجمه الطبيعي وتكبر مساحة صفحة القرآن فقط لو شريط الحالة مختفٍ فعلاً —
+  // وليس بمجرد تفعيل الخيار قبل ما المتصفح يستجيب لطلب ملء الشاشة
+  function syncStatusBarClass() {
+    document.body.classList.toggle('statusbar-hidden', isCurrentlyFullscreen());
+    requestAnimationFrame(fitMushafPage);
+  }
+  document.addEventListener('fullscreenchange', syncStatusBarClass);
+  document.addEventListener('webkitfullscreenchange', syncStatusBarClass);
+
   let fullscreenGestureBound = false;
   function armFullscreenOnFirstTouch() {
     if (fullscreenGestureBound) return;
     fullscreenGestureBound = true;
     const tryOnce = () => {
       document.removeEventListener('pointerdown', tryOnce, true);
-      if (getFullscreenPref() && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (getFullscreenPref() && !isCurrentlyFullscreen()) {
         requestAppFullscreen();
       }
     };
@@ -2111,6 +2123,7 @@
       requestAppFullscreen();
       armFullscreenOnFirstTouch();
     }
+    syncStatusBarClass();
 
     toggle.addEventListener('change', () => {
       localStorage.setItem(FULLSCREEN_PREF_KEY, toggle.checked ? '1' : '0');
