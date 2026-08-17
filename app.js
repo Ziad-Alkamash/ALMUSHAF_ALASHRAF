@@ -2095,13 +2095,21 @@
   function armFullscreenOnFirstTouch() {
     if (fullscreenGestureBound) return;
     fullscreenGestureBound = true;
+    // ملحوظة مهمة: لازم نستخدم حدث معتمَد ضمن قائمة "user activation" الرسمية
+    // في متصفحات Chromium (زي pointerup / click / touchend)، وليس pointerdown،
+    // لأن pointerdown مش من ضمن الأحداث اللي تمنح "تفاعل مستخدم حقيقي" — فلو
+    // استخدمناه، طلب ملء الشاشة (requestFullscreen) بيترفض بصمت من المتصفح،
+    // وده كان سبب إن شريط الحالة كان فاضل ظاهر لحد ما المستخدم يدخل الإعدادات
+    // ويضغط على التوجل يدويًا (اللي بيولّد حدث change من ضغطة/click حقيقية)
     const tryOnce = () => {
-      document.removeEventListener('pointerdown', tryOnce, true);
+      document.removeEventListener('pointerup', tryOnce, true);
+      document.removeEventListener('touchend', tryOnce, true);
       if (getFullscreenPref() && !isCurrentlyFullscreen()) {
         requestAppFullscreen();
       }
     };
-    document.addEventListener('pointerdown', tryOnce, true);
+    document.addEventListener('pointerup', tryOnce, true);
+    document.addEventListener('touchend', tryOnce, true);
   }
   function initFullscreenToggle() {
     const toggle = $('#toggle-fullscreen');
