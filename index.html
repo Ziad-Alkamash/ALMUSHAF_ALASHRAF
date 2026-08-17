@@ -57,6 +57,11 @@
       <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 21c.3-4.2 1.4-7 3-8.6.9-.9 1.6-2.2 1.8-3.7.2-1.4.2-2.9-.1-4.2M4 21c.6-.2 1.2-.2 1.8 0M9.7 8.7c.5-.4 1.1-.6 1.7-.6M20 21c-.3-4.2-1.4-7-3-8.6-.9-.9-1.6-2.2-1.8-3.7-.2-1.4-.2-2.9.1-4.2M20 21c-.6-.2-1.2-.2-1.8 0M14.3 8.7c-.5-.4-1.1-.6-1.7-.6"/>
       <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M9 3.3c.6.5 1 1.2 1 2M15 3.3c-.6.5-1 1.2-1 2"/>
     </symbol>
+    <symbol id="icon-dua-hands" viewBox="0 0 24 24">
+      <circle cx="12" cy="4.3" r="2.1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 6.6v7.4M12 14l-4 7M12 14l4 7M12 9L7 5M12 9l5-4"/>
+      <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M7 5l-1.3-.6M7 5l-.4-1.6M17 5l1.3-.6M17 5l.4-1.6"/>
+    </symbol>
     <symbol id="icon-mosque" viewBox="0 0 24 24">
       <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 3v3M12 6c-2.5 0-4.5 2-4.5 4.5V21h9V10.5C16.5 8 14.5 6 12 6zM6 12v9M18 12v9M3 21h18"/>
     </symbol>
@@ -65,8 +70,18 @@
       <line x1="21" y1="21" x2="16.2" y2="16.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     </symbol>
     <symbol id="icon-settings" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path fill="none" stroke="currentColor" stroke-width="2" d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+      <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <g fill="currentColor">
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(0 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(45 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(90 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(135 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(180 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(225 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(270 12 12)"/>
+        <rect x="10.6" y="1.2" width="2.8" height="3.4" rx="0.8" transform="rotate(315 12 12)"/>
+      </g>
     </symbol>
     <symbol id="icon-close" viewBox="0 0 24 24">
       <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
@@ -380,7 +395,7 @@
     </div>
     <div class="nav-grid">
       <button class="nav-item" data-tab="home">
-        <span class="nav-item-icon"><svg><use href="#icon-star"></use></svg></span>
+        <span class="nav-item-icon"><svg><use href="#icon-chart"></use></svg></span>
         <span>ختمتي والملخص</span>
       </button>
       <button class="nav-item active" data-tab="quran">
@@ -809,6 +824,17 @@
     <h4 class="player-section-title">اختر سورة</h4>
     <input type="text" id="player-surah-search" class="text-input" placeholder="ابحث باسم السورة...">
     <div id="player-surah-list" class="surah-list player-surah-list"></div>
+  </div>
+</div>
+
+<!-- صفحة عرض كل أدعية/أذكار قسم معيّن، تُفتح عند اختيار عنوان من قائمة الأذكار أو الأدعية -->
+<div id="dhikr-list-overlay" class="overlay">
+  <div class="overlay-sheet dhikr-list-sheet">
+    <div class="overlay-head">
+      <h3 id="dhikr-list-title">العنوان</h3>
+      <button class="icon-btn" id="btn-close-dhikr-list" aria-label="إغلاق"><svg><use href="#icon-close"></use></svg></button>
+    </div>
+    <div id="dhikr-list-content"></div>
   </div>
 </div>
 

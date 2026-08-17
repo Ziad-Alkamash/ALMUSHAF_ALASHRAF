@@ -1434,6 +1434,56 @@
   /* ---------------------------------------------------------------- */
   /* الأذكار والأدعية                                                 */
   /* ---------------------------------------------------------------- */
+  // يبني HTML لبطاقات عناصر قسم واحد (أذكار أو أدعية) — تُستخدم عند فتح صفحة القسم كاملة
+  function buildDhikrItemsHTML(items, favType, sectionId) {
+    return items
+      .map((it, j) => {
+        const target = Math.max(1, Number(it.count) || 1);
+        const favKey = `${favType}:${sectionId}:${j}`;
+        const isFav = favType ? isFavorite(favKey) : false;
+        return `
+      <div class="dhikr-card">
+        <p class="dhikr-text">${escapeHTML(it.text)}</p>
+        <div class="dhikr-foot">
+          ${it.note ? `<span class="dhikr-note">${escapeHTML(it.note)}</span>` : ''}
+          ${it.count && it.count > 1 ? `<span class="dhikr-count">×${toArabicDigits(it.count)}</span>` : ''}
+          <span class="dhikr-foot-end">
+            ${it.source ? `<span class="dhikr-source">${escapeHTML(it.source)}</span>` : ''}
+            ${favType ? `<button class="fav-star ${isFav ? 'active' : ''}" data-fav-key="${favKey}" aria-label="إضافة للمفضلة">${isFav ? '★' : '☆'}</button>` : ''}
+          </span>
+        </div>
+        <div class="tasbih-row">
+          <button class="tasbih-counter" data-target="${target}" data-count="0" aria-label="مسبحة إلكترونية">
+            <span class="tasbih-num">٠</span>
+          </button>
+          <span class="tasbih-hint">اضغط للعدّ حتى ${toArabicDigits(target)}</span>
+          <button class="tasbih-reset" aria-label="إعادة تعيين العدّاد">
+            <svg><use href="#icon-reset"></use></svg>
+          </button>
+        </div>
+      </div>`;
+      })
+      .join('');
+  }
+
+  // تفتح صفحة (Overlay) بها كل عناصر قسم واحد كاملة قابلة للتمرير، بدل الفتح المكاني
+  // القديم المحدود بارتفاع ثابت الذي كان يُخفي العناصر بعد عدد معيّن منها
+  function openDhikrListOverlay(section, favType) {
+    const titleEl = $('#dhikr-list-title');
+    const contentEl = $('#dhikr-list-content');
+    if (!titleEl || !contentEl) return;
+    titleEl.textContent = section.title;
+    contentEl.innerHTML = buildDhikrItemsHTML(section.items, favType, section.id);
+    initTasbihCounters(contentEl);
+    initFavoriteStars(contentEl);
+    openOverlay('#dhikr-list-overlay');
+  }
+
+  function initDhikrListOverlay() {
+    const closeBtn = $('#btn-close-dhikr-list');
+    if (closeBtn) closeBtn.addEventListener('click', () => closeOverlay('#dhikr-list-overlay'));
+  }
+
   function renderAccordion(containerId, dataset, favType) {
     const wrap = $(containerId);
     if (!wrap || !dataset) return;
@@ -1445,49 +1495,15 @@
           <span class="acc-icon">${section.icon}</span>
           <span class="acc-title">${escapeHTML(section.title)}</span>
           <span class="acc-count">${toArabicDigits(section.items.length)}</span>
+          <svg class="acc-chevron"><use href="#icon-chevron-down"></use></svg>
         </button>
-        <div class="accordion-body">
-          ${section.items
-            .map((it, j) => {
-              const target = Math.max(1, Number(it.count) || 1);
-              const favKey = `${favType}:${section.id}:${j}`;
-              const isFav = favType ? isFavorite(favKey) : false;
-              return `
-            <div class="dhikr-card">
-              <p class="dhikr-text">${escapeHTML(it.text)}</p>
-              <div class="dhikr-foot">
-                ${it.note ? `<span class="dhikr-note">${escapeHTML(it.note)}</span>` : ''}
-                ${it.count && it.count > 1 ? `<span class="dhikr-count">×${toArabicDigits(it.count)}</span>` : ''}
-                <span class="dhikr-foot-end">
-                  ${it.source ? `<span class="dhikr-source">${escapeHTML(it.source)}</span>` : ''}
-                  ${favType ? `<button class="fav-star ${isFav ? 'active' : ''}" data-fav-key="${favKey}" aria-label="إضافة للمفضلة">${isFav ? '★' : '☆'}</button>` : ''}
-                </span>
-              </div>
-              <div class="tasbih-row">
-                <button class="tasbih-counter" data-target="${target}" data-count="0" aria-label="مسبحة إلكترونية">
-                  <span class="tasbih-num">٠</span>
-                </button>
-                <span class="tasbih-hint">اضغط للعدّ حتى ${toArabicDigits(target)}</span>
-                <button class="tasbih-reset" aria-label="إعادة تعيين العدّاد">
-                  <svg><use href="#icon-reset"></use></svg>
-                </button>
-              </div>
-            </div>`;
-            })
-            .join('')}
-        </div>
       </div>`
       )
       .join('');
 
-    $$('.accordion-head', wrap).forEach((head) => {
-      head.addEventListener('click', () => {
-        head.parentElement.classList.toggle('open');
-      });
+    $$('.accordion-head', wrap).forEach((head, i) => {
+      head.addEventListener('click', () => openDhikrListOverlay(dataset[i], favType));
     });
-
-    initTasbihCounters(wrap);
-    initFavoriteStars(wrap);
   }
 
   /* -------- الأذكار/الأدعية المفضّلة -------- */
@@ -2584,6 +2600,7 @@
     initPlayerOverlay();
     initQiblaCompass();
 
+    initDhikrListOverlay();
     if (typeof AZKAR_DATA !== 'undefined') renderAccordion('#azkar-accordion', AZKAR_DATA, 'azkar');
     if (typeof DUAS_DATA !== 'undefined') renderAccordion('#duas-accordion', DUAS_DATA, 'duas');
 

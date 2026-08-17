@@ -549,8 +549,16 @@ body.theme-night .list-title { color: var(--gold-soft); }
   color: var(--emerald);
 }
 body.theme-night .accordion-head { color: var(--gold-soft); }
-.acc-icon { font-size: 20px; }
-.acc-title { flex: 1; text-align: right; font-size: 15px; }
+.acc-icon { font-size: 20px; flex-shrink: 0; }
+.acc-title {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
 .acc-count {
   font-size: 11px;
   background: var(--gold);
@@ -559,15 +567,41 @@ body.theme-night .accordion-head { color: var(--gold-soft); }
   padding: 2px 9px;
   font-weight: 800;
 }
-.accordion-body {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height .35s ease, padding .35s ease;
-  padding: 0 14px;
+.accordion-head { cursor: pointer; }
+.acc-chevron {
+  width: 18px; height: 18px;
+  color: var(--paper-line);
+  transform: rotate(90deg);
+  flex-shrink: 0;
 }
-.accordion-section.open .accordion-body {
-  max-height: 4000px;
-  padding: 0 14px 14px;
+body.theme-night .acc-chevron { color: rgba(234,201,108,.5); }
+
+/* صفحة عرض كل عناصر القسم (تُفتح بدل الفتح المكاني القديم المحدود بارتفاع ثابت) */
+.dhikr-list-sheet {
+  max-height: 92vh;
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.dhikr-list-sheet .overlay-head { align-items: flex-start; }
+.dhikr-list-sheet .overlay-head h3 {
+  font-size: 17px;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+}
+.dhikr-list-sheet .overlay-head {
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  z-index: 2;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--paper-line);
+}
+#dhikr-list-content {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: 4px;
 }
 .dhikr-card {
   background: var(--paper);
