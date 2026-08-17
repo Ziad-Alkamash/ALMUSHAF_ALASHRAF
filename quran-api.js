@@ -194,6 +194,24 @@ const QuranAPI = (() => {
     return collected;
   }
 
+  // 3️⃣.٦ رقم الصفحة التي تقع فيها آية معينة بالضبط (تُستخدم لتتبّع القراءة تلقائيًا
+  // أثناء الاستماع المتواصل، حتى تنتقل صفحة المصحف مع القارئ لو الآية طلعت بره
+  // الصفحة المعروضة حاليًا). نتيجة alquran.cloud لآية مفردة تتضمن رقم صفحتها مباشرة
+  async function getAyahPage(surahNumber, ayahNumber) {
+    const data = await cachedFetchJSON(`${BASE}/ayah/${surahNumber}:${ayahNumber}/quran-uthmani`, 24 * 365);
+    return data.data && data.data.page;
+  }
+
+  // 3️⃣.٧ قائمة آيات سورة معينة مع طول نص كل آية (بالحروف) — تُستخدم لتقدير توقيت
+  // كل آية تقريبيًا داخل ملف صوتي لسورة كاملة عند القراء اللي مفيش عندهم توقيت
+  // آية-بآية حقيقي (انظر isCustomAudioReciter). نفس نقطة الاتصال المستخدمة أصلاً
+  // في getSurahStartPage، فعادةً بتيجي من الكاش من غير طلب شبكة إضافي
+  async function getSurahAyahLengths(surahNumber) {
+    const data = await cachedFetchJSON(`${BASE}/surah/${surahNumber}/quran-uthmani`);
+    const ayahs = (data.data && data.data.ayahs) || [];
+    return ayahs.map((a) => ({ numberInSurah: a.numberInSurah, length: (a.text || '').length }));
+  }
+
   // 4️⃣ تفسير الميسر لآية محددة
   async function getTafsir(surah, ayah) {
     const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/ar.muyassar`);
@@ -313,6 +331,8 @@ const QuranAPI = (() => {
     getSurahList, 
     getSurahStartPage, 
     getAyahRange,
+    getAyahPage,
+    getSurahAyahLengths,
     getTafsir, 
     getAyahAudio, 
     getWordMeanings,

@@ -1320,6 +1320,7 @@
 
     /* -------- تظليل الآية التي يقرأها القارئ الآن في صفحة المصحف -------- */
     let lastHighlightedAyahEl = null;
+    let followPageInFlight = false;
     function clearAyahHighlight() {
       if (lastHighlightedAyahEl) {
         lastHighlightedAyahEl.classList.remove('ayah-playing');
@@ -1329,14 +1330,33 @@
     function highlightPlayingAyah(surahNumber, ayahNumber) {
       clearAyahHighlight();
       const target = $(`.ayah[data-surah="${surahNumber}"][data-ayah="${ayahNumber}"]`);
-      if (!target) return; // الآية على صفحة أخرى غير المعروضة حاليًا، لا شيء نظلّله
-      target.classList.add('ayah-playing');
-      lastHighlightedAyahEl = target;
-      const rect = target.getBoundingClientRect();
-      const wrap = $('#mushaf-wrap');
-      const wrapRect = wrap && wrap.getBoundingClientRect();
-      if (wrapRect && (rect.top < wrapRect.top || rect.bottom > wrapRect.bottom)) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (target) {
+        target.classList.add('ayah-playing');
+        lastHighlightedAyahEl = target;
+        const rect = target.getBoundingClientRect();
+        const wrap = $('#mushaf-wrap');
+        const wrapRect = wrap && wrap.getBoundingClientRect();
+        if (wrapRect && (rect.top < wrapRect.top || rect.bottom > wrapRect.bottom)) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return;
+      }
+      // الآية مش على الصفحة المعروضة حاليًا. لو المستخدم فاتح تبويب "القرآن" فعلاً،
+      // نجيب رقم صفحتها وننقله لها تلقائيًا حتى تفضل الآية اللي بتتقرأ متحدّدة قدّامه
+      // (تتبّع تلقائي للقراءة)، بدل ما التظليل يفضل مش ظاهر إلا لو هو بيقلّب يدويًا
+      const quranView = $('#view-quran');
+      if (!followPageInFlight && quranView && quranView.classList.contains('active') && typeof QuranAPI !== 'undefined' && QuranAPI.getAyahPage) {
+        followPageInFlight = true;
+        QuranAPI.getAyahPage(surahNumber, ayahNumber)
+          .then((page) => {
+            followPageInFlight = false;
+            if (!page) return;
+            // تأكيد إن الآية دي لسه هي المشغّلة فعلاً (المستخدم ممكن يكون غيّر حاجة أثناء الجلب)
+            if (state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
+            if (state.currentPageData && state.currentPageData.pageNumber === page) return;
+            loadPage(page);
+          })
+          .catch(() => { followPageInFlight = false; });
       }
     }
     // يُستدعى بعد إعادة رسم الصفحة (مثلاً عند التنقل بين صفحات المصحف أثناء التشغيل)
@@ -1475,6 +1495,24 @@
         else highlightPlayingAyah(surahNumber, ayahNumber);
         updateMediaSessionMetadata();
 
+        // للقراء اللي ملفهم سورة كاملة بلا توقيت آية-بآية حقيقي: نقدّر تقريبيًا توقيت
+        // كل آية بالنسبة لطول نصها من إجمالي نص السورة، عشان تفضل الآية بتتحدد أثناء
+        // القراءة تقريبًا حتى مع هؤلاء القراء بدل ما يفضل التظليل واقف تمامًا طول السورة
+        let ayahBounds = null;
+        if (fullFileOnly) {
+          QuranAPI.getSurahAyahLengths(surahNumber).then((list) => {
+            const dur = state.surahAudioEl && state.surahAudioEl.duration;
+            if (!list.length || !dur || state.surahAudioSurah !== surahNumber) return;
+            const totalLen = list.reduce((s, a) => s + a.length, 0) || 1;
+            let acc = 0;
+            ayahBounds = list.map((a) => {
+              const start = (acc / totalLen) * dur;
+              acc += a.length;
+              return { ayah: a.numberInSurah, start };
+            });
+          }).catch(() => { /* لو فشل الجلب، يفضل بدون تظليل تقريبي فقط */ });
+        }
+
         state.surahAudioEl.addEventListener('loadedmetadata', () => {
           const dur = Math.floor(state.surahAudioEl.duration) || 0;
           if (barSeek) barSeek.max = dur;
@@ -1489,6 +1527,20 @@
           if (overlaySeek) overlaySeek.value = cur;
           if (barTimeCurrent) barTimeCurrent.textContent = formatPlayerTime(cur);
           if (overlayCurrentTime) overlayCurrentTime.textContent = formatPlayerTime(cur);
+
+          if (fullFileOnly && ayahBounds && ayahBounds.length) {
+            const t = state.surahAudioEl.currentTime;
+            let currentAyah = ayahBounds[0].ayah;
+            for (let i = 0; i < ayahBounds.length; i++) {
+              if (ayahBounds[i].start <= t) currentAyah = ayahBounds[i].ayah;
+              else break;
+            }
+            if (state.ayahPlayerAyahNum !== currentAyah) {
+              state.ayahPlayerAyahNum = currentAyah;
+              highlightPlayingAyah(surahNumber, currentAyah);
+              syncNowPlayingUI();
+            }
+          }
         });
         state.surahAudioEl.addEventListener('ended', () => {
           if (fullFileOnly) {
