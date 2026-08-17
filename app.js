@@ -1438,25 +1438,41 @@
       if (state.surahAudioEl) { state.surahAudioEl.pause(); state.surahAudioEl = null; }
 
       const ed = getSelectedReciter();
+      // القراء اللي مالهمش تسجيل آية-بآية (ياسر الدوسري، فارس عباد، هيثم الدخين، سعد
+      // الغامدي) عندهم بس ملف سورة كاملة. قبل كده كان الكود بيستبدل صوتهم بصوت
+      // العفاسي بصمت لأي آية، فكان حسّاس المستخدم إنه بيدوس على قارئ وبيشتغل قارئ
+      // تاني. دلوقتي بنشغّل لهم ملف السورة الكاملة الصحيح بدل ما نبدّل القارئ
+      const fullFileOnly = typeof QuranAPI !== 'undefined' && QuranAPI.isCustomAudioReciter && QuranAPI.isCustomAudioReciter(ed);
+
       state.playerMode = 'ayah';
       state.surahAudioSurah = surahNumber;
       state.surahAudioReciter = ed;
-      state.ayahPlayerAyahNum = ayahNumber;
+      state.ayahPlayerAyahNum = fullFileOnly ? null : ayahNumber;
 
-      showBar();
+      // لو المستخدم صغّر الشريط لزرار عائم يدويًا، إعادة تحميل الآية التالية أثناء
+      // التشغيل المتواصل ما ينفعش يفتح الشريط تاني من تلقاء نفسه؛ بس أول مرة (لما
+      // يكون لسه مخفي تمامًا "hidden") لازم نظهره عشان المستخدم يشوف إنه بدأ التشغيل
+      if (bar.classList.contains('hidden')) showBar();
       if (headerBtn) headerBtn.classList.add('active');
       syncNowPlayingUI();
       if (barPlayBtn) barPlayBtn.innerHTML = '⏳';
 
       try {
-        const url = await QuranAPI.getAyahAudio(surahNumber, ayahNumber, ed);
+        if (fullFileOnly && ayahNumber !== 1) {
+          showToast(`تسجيلات ${reciterName(ed)} متاحة سورة كاملة فقط، هيبدأ التشغيل من أول السورة`);
+        }
+        const url = fullFileOnly
+          ? QuranAPI.getSurahAudioURL(surahNumber, ed)
+          : await QuranAPI.getAyahAudio(surahNumber, ayahNumber, ed);
         // قد يكون المستخدم غيّر الوضع أثناء الانتظار (مثلاً ضغط إيقاف)
-        if (state.playerMode !== 'ayah' || state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
+        if (state.playerMode !== 'ayah' || state.surahAudioSurah !== surahNumber) return;
+        if (!fullFileOnly && state.ayahPlayerAyahNum !== ayahNumber) return;
 
         state.surahAudioEl = new Audio(url);
         state.surahAudioEl.playbackRate = getPlayerRate();
         syncNowPlayingUI();
-        highlightPlayingAyah(surahNumber, ayahNumber);
+        if (fullFileOnly) clearAyahHighlight();
+        else highlightPlayingAyah(surahNumber, ayahNumber);
         updateMediaSessionMetadata();
 
         state.surahAudioEl.addEventListener('loadedmetadata', () => {
@@ -1475,6 +1491,14 @@
           if (overlayCurrentTime) overlayCurrentTime.textContent = formatPlayerTime(cur);
         });
         state.surahAudioEl.addEventListener('ended', () => {
+          if (fullFileOnly) {
+            // كان الملف سورة كاملة مش آية، فالانتقال يبقى للسورة اللي بعدها مباشرة
+            if (!isPlayerContinuous()) { stopAudio(); return; }
+            const nextSurah = surahNumber >= 114 ? 1 : surahNumber + 1;
+            showToast(`الآن يُشغَّل: سورة ${surahNameByNumber(nextSurah)}`);
+            playAyahContinuous(nextSurah, 1);
+            return;
+          }
           const count = ayahCountByNumber(surahNumber);
           let nextSurah = surahNumber;
           let nextAyah = ayahNumber + 1;
@@ -1485,6 +1509,11 @@
             showToast(`الآن يُشغَّل: سورة ${surahNameByNumber(nextSurah)}`);
           }
           playAyahContinuous(nextSurah, nextAyah);
+        });
+
+        state.surahAudioEl.addEventListener('error', () => {
+          showToast('تعذّر تشغيل هذا التسجيل، تحقّق من الاتصال بالإنترنت');
+          stopAudio();
         });
 
         await state.surahAudioEl.play();

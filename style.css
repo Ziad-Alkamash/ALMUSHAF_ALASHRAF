@@ -1383,7 +1383,7 @@ body.theme-night .gp-bar { background: linear-gradient(170deg, var(--paper-deep)
   background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold-deep));
   color: var(--emerald);
   box-shadow: 0 6px 16px rgba(0,0,0,.35);
-  z-index: 97;
+  z-index: 101;
   touch-action: none;
   cursor: grab;
   transition: opacity .25s ease, transform .25s ease, box-shadow .15s ease;

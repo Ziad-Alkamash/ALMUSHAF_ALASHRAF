@@ -226,12 +226,20 @@ const QuranAPI = (() => {
   // cdn.islamic.network (تسجيلات حديثة تمّ التحقق من مصدرها يدويًا). المفتاح هو نفس
   // معرّف القارئ في RECITERS أعلاه، والقيمة دالة تبني رابط ملف mp3 لرقم سورة معيّن
   // (أرقام السور هنا بصيغة 3 خانات مثل 001 وليس 1، بخلاف نمط cdn.islamic.network)
+  // ملاحظة مهمة: روابط ملفات mp3quran.net الفعلية تمر عبر مسار "/download/" وليس
+  // مباشرة تحت اسم القارئ (تم التحقق من المسار الصحيح يدويًا من صفحات الموقع نفسه)،
+  // وبدون هذا الجزء من الرابط كانت كل السور بهؤلاء القراء الأربعة تفشل بصمت
   const CUSTOM_SURAH_AUDIO = {
-    'ar.yasseraldosari': (n) => `https://server11.mp3quran.net/yasser/${String(n).padStart(3, '0')}.mp3`,
-    'ar.faresabbad': (n) => `https://server8.mp3quran.net/frs_a/${String(n).padStart(3, '0')}.mp3`,
-    'ar.haithamaldukhain': (n) => `https://server16.mp3quran.net/h_dukhain/Rewayat-Hafs-A-n-Assem/${String(n).padStart(3, '0')}.mp3`,
-    'ar.saadalghamdi': (n) => `https://server7.mp3quran.net/s_gmd/${String(n).padStart(3, '0')}.mp3`
+    'ar.yasseraldosari': (n) => `https://server11.mp3quran.net/download/yasser/${String(n).padStart(3, '0')}.mp3`,
+    'ar.faresabbad': (n) => `https://server8.mp3quran.net/download/frs_a/${String(n).padStart(3, '0')}.mp3`,
+    'ar.haithamaldukhain': (n) => `https://server16.mp3quran.net/download/h_dukhain/Rewayat-Hafs-A-n-Assem/${String(n).padStart(3, '0')}.mp3`,
+    'ar.saadalghamdi': (n) => `https://server7.mp3quran.net/download/s_gmd/${String(n).padStart(3, '0')}.mp3`
   };
+
+  // هل هذا القارئ من القراء الذين لا تتوفر لهم إلا ملفات سورة كاملة (بلا تسجيل آية-بآية)؟
+  function isCustomAudioReciter(editionId) {
+    return !!CUSTOM_SURAH_AUDIO[editionId];
+  }
 
   // رابط ملف صوتي لسورة كاملة بصوت قارئ محدد
   function getSurahAudioURL(surahNumber, editionId) {
@@ -241,12 +249,12 @@ const QuranAPI = (() => {
   }
 
   // 5️⃣ رابط تلاوة صوتية للآية (افتراضيًا الشيخ مشاري العفاسي، أو أي قارئ آخر من RECITERS)
-  // ملاحظة: القراء الأربعة في CUSTOM_SURAH_AUDIO ليس لديهم تسجيل آية-بآية على alquran.cloud
-  // (تسجيلاتهم متوفرة سورة كاملة فقط)، فنستخدم صوت العفاسي تلقائيًا عند تشغيل آية مفردة
-  // فقط لهؤلاء، بينما يبقى تشغيل السورة الكاملة بصوت القارئ المختار كما هو
+  // ملاحظة: القراء الأربعة أعلاه ليس لديهم تسجيل آية-بآية على alquran.cloud (تسجيلاتهم
+  // متوفرة سورة كاملة فقط)، لذلك يتفادى app.js استدعاء هذه الدالة لهم أصلاً (انظر
+  // isCustomAudioReciter و getSurahAudioURL) ويشغّل لهم ملف السورة الكاملة مباشرة
+  // بدل استبدال صوتهم بصوت قارئ آخر بصمت
   async function getAyahAudio(surah, ayah, editionId) {
-    let ed = editionId || 'ar.alafasy';
-    if (CUSTOM_SURAH_AUDIO[ed]) ed = 'ar.alafasy';
+    const ed = editionId || 'ar.alafasy';
     const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/${ed}`, 24 * 365);
     return data.data.audio;
   }
@@ -312,6 +320,7 @@ const QuranAPI = (() => {
     pageURL,
     RECITERS,
     getSurahAudioURL,
+    isCustomAudioReciter,
     recordSurahStartPagesFromRawPage
   };
 })();
