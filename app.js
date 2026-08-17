@@ -949,19 +949,36 @@
       genBtn.disabled = true;
       genBtn.querySelector('span').textContent = 'جارٍ تجهيز الصورة...';
       try {
-        let ayahsList;
-        if (from === to && from === ayah) {
-          ayahsList = [{ num: ayah, text: state.activeAyah.text }];
-        } else {
-          const fullSurah = await QuranAPI.getSurahAyahs(surah);
-          ayahsList = fullSurah
-            .filter((a) => a.numberInSurah >= from && a.numberInSurah <= to)
-            .map((a) => ({ num: a.numberInSurah, text: a.text }));
+        // ١) اجمع أولاً من بيانات الصفحة المفتوحة حاليًا في الذاكرة — بدون أي اتصال بالإنترنت إطلاقًا
+        const collected = new Map();
+        const cur = state.currentPageData;
+        if (cur && cur.ayahs) {
+          cur.ayahs.forEach((a) => {
+            if (a.surah.number === surah && a.numberInSurah >= from && a.numberInSurah <= to) {
+              collected.set(a.numberInSurah, a.text);
+            }
+          });
         }
+        if (state.activeAyah && state.activeAyah.surah === surah && state.activeAyah.ayah >= from && state.activeAyah.ayah <= to) {
+          collected.set(state.activeAyah.ayah, state.activeAyah.text);
+        }
+
+        // ٢) لو النطاق يمتد خارج الصفحة الحالية، أكمل الباقي عبر نفس نقطة جلب الصفحات
+        // المستخدمة في القراءة العادية و"تحميل كل الصفحات" — فتعمل بدون إنترنت لو
+        // كانت هذه الصفحات قد مرّت على الجهاز من قبل، بدل الاعتماد على اتصال جديد مختلف
+        if (collected.size < (to - from + 1)) {
+          const extra = await QuranAPI.getAyahRange(surah, from, to);
+          extra.forEach((a) => { if (!collected.has(a.numberInSurah)) collected.set(a.numberInSurah, a.text); });
+        }
+
+        const ayahsList = Array.from(collected.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map(([num, text]) => ({ num, text }));
+
         if (!ayahsList.length) throw new Error('no-ayahs');
         await generateAyahImage(surahNameAr, from, to, ayahsList);
       } catch (e) {
-        showToast('تعذّر تجهيز الصورة، تحقّق من الاتصال بالإنترنت');
+        showToast('تعذّر تجهيز الصورة لبعض هذه الآيات، حاول فتح صفحاتها أولًا ثم أعد المحاولة');
       } finally {
         genBtn.disabled = false;
         genBtn.querySelector('span').textContent = 'إنشاء الصورة ومشاركتها';

@@ -162,17 +162,36 @@ const QuranAPI = (() => {
     return 1;
   }
 
-  // 3️⃣.٥ نص كل آيات سورة معينة كاملة (يُستخدم لمشاركة نطاق من الآيات كصورة واحدة)
-  async function getSurahAyahs(surahNumber) {
-    const data = await cachedFetchJSON(`${BASE}/surah/${surahNumber}/quran-uthmani`);
-    const rawAyahs = (data.data && data.data.ayahs) || [];
-    return rawAyahs.map((a) => {
-      let cleanText = a.text;
-      if (a.numberInSurah === 1 && surahNumber !== 1 && surahNumber !== 9) {
-        cleanText = cleanText.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, '');
+  // 3️⃣.٥ نص نطاق من الآيات (من آية إلى آية) داخل سورة معينة — لمشاركة عدة آيات كصورة واحدة.
+  // تُبنى من نقطة "page" نفسها المستخدمة في القراءة العادية وفي "تحميل كل الصفحات"،
+  // فتعمل بدون إنترنت طالما أن صفحات هذه السورة سبق أن مرّت على الجهاز (بالتصفح أو بالتحميل الشامل)
+  async function getAyahRange(surahNumber, fromAyah, toAyah) {
+    const needed = toAyah - fromAyah + 1;
+    let page = await getSurahStartPage(surahNumber);
+    const collected = [];
+    let guard = 0;
+
+    while (collected.length < needed && page <= 604 && guard < 40) {
+      let data;
+      try {
+        data = await getPage(page);
+      } catch (e) {
+        break;
       }
-      return { numberInSurah: a.numberInSurah, text: cleanText };
-    });
+      let passedSurah = false;
+      data.ayahs.forEach((a) => {
+        if (a.surah.number === surahNumber && a.numberInSurah >= fromAyah && a.numberInSurah <= toAyah) {
+          collected.push({ numberInSurah: a.numberInSurah, text: a.text });
+        }
+        if (a.surah.number > surahNumber) passedSurah = true;
+      });
+      if (passedSurah && collected.length < needed) break;
+      page += 1;
+      guard += 1;
+    }
+
+    collected.sort((a, b) => a.numberInSurah - b.numberInSurah);
+    return collected;
   }
 
   // 4️⃣ تفسير الميسر لآية محددة
@@ -193,18 +212,41 @@ const QuranAPI = (() => {
     { id: 'ar.minshawi', name: 'محمد صديق المنشاوي' },
     { id: 'ar.mahermuaiqly', name: 'ماهر المعيقلي' },
     { id: 'ar.saoodshuraym', name: 'سعود الشريم' },
-    { id: 'ar.ahmedajamy', name: 'أحمد العجمي' }
+    { id: 'ar.ahmedajamy', name: 'أحمد العجمي' },
+    // القراء الأربعة التالية بتسجيلات حديثة (مصاحف مرتلة حديثة، وليست تسجيلات قديمة)
+    // مصدرها مكتبة mp3quran.net الصوتية بدلاً من alquran.cloud، لأن الأخيرة لا تملك
+    // إصدارات آية-بآية لهؤلاء القراء (انظر CUSTOM_SURAH_AUDIO أدناه لروابط السور الكاملة)
+    { id: 'ar.yasseraldosari', name: 'ياسر الدوسري' },
+    { id: 'ar.faresabbad', name: 'فارس عباد' },
+    { id: 'ar.haithamaldukhain', name: 'هيثم الدخين' },
+    { id: 'ar.saadalghamdi', name: 'سعد الغامدي' }
   ];
+
+  // روابط مباشرة لسور كاملة من مكتبة mp3quran.net لقراء لا تتوفر تلاواتهم على شبكة
+  // cdn.islamic.network (تسجيلات حديثة تمّ التحقق من مصدرها يدويًا). المفتاح هو نفس
+  // معرّف القارئ في RECITERS أعلاه، والقيمة دالة تبني رابط ملف mp3 لرقم سورة معيّن
+  // (أرقام السور هنا بصيغة 3 خانات مثل 001 وليس 1، بخلاف نمط cdn.islamic.network)
+  const CUSTOM_SURAH_AUDIO = {
+    'ar.yasseraldosari': (n) => `https://server11.mp3quran.net/yasser/${String(n).padStart(3, '0')}.mp3`,
+    'ar.faresabbad': (n) => `https://server8.mp3quran.net/frs_a/${String(n).padStart(3, '0')}.mp3`,
+    'ar.haithamaldukhain': (n) => `https://server16.mp3quran.net/h_dukhain/Rewayat-Hafs-A-n-Assem/${String(n).padStart(3, '0')}.mp3`,
+    'ar.saadalghamdi': (n) => `https://server7.mp3quran.net/s_gmd/${String(n).padStart(3, '0')}.mp3`
+  };
 
   // رابط ملف صوتي لسورة كاملة بصوت قارئ محدد
   function getSurahAudioURL(surahNumber, editionId) {
     const ed = editionId || 'ar.alafasy';
+    if (CUSTOM_SURAH_AUDIO[ed]) return CUSTOM_SURAH_AUDIO[ed](surahNumber);
     return `https://cdn.islamic.network/quran/audio-surah/128/${ed}/${surahNumber}.mp3`;
   }
 
   // 5️⃣ رابط تلاوة صوتية للآية (افتراضيًا الشيخ مشاري العفاسي، أو أي قارئ آخر من RECITERS)
+  // ملاحظة: القراء الأربعة في CUSTOM_SURAH_AUDIO ليس لديهم تسجيل آية-بآية على alquran.cloud
+  // (تسجيلاتهم متوفرة سورة كاملة فقط)، فنستخدم صوت العفاسي تلقائيًا عند تشغيل آية مفردة
+  // فقط لهؤلاء، بينما يبقى تشغيل السورة الكاملة بصوت القارئ المختار كما هو
   async function getAyahAudio(surah, ayah, editionId) {
-    const ed = editionId || 'ar.alafasy';
+    let ed = editionId || 'ar.alafasy';
+    if (CUSTOM_SURAH_AUDIO[ed]) ed = 'ar.alafasy';
     const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/${ed}`, 24 * 365);
     return data.data.audio;
   }
@@ -262,7 +304,7 @@ const QuranAPI = (() => {
     getPage, 
     getSurahList, 
     getSurahStartPage, 
-    getSurahAyahs,
+    getAyahRange,
     getTafsir, 
     getAyahAudio, 
     getWordMeanings,
