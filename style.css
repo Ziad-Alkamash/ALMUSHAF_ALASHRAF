@@ -1302,23 +1302,26 @@ body.theme-night .settings-card-title { color: var(--gold-soft); }
   accent-color: var(--gold-bright);
 }
 
-/* زرار عائم لإظهار المشغّل بعد إخفائه أثناء القراءة */
+/* زرار عائم لإظهار المشغّل بعد إخفائه أثناء القراءة — قابل للسحب لأي مكان بالشاشة */
 .show-player-fab {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom) + 96px);
   left: 16px;
-  width: 46px; height: 46px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(150deg, var(--gold-bright), var(--gold-deep));
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold-deep));
   color: var(--emerald);
-  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
   z-index: 97;
-  transition: opacity .25s ease, transform .25s ease;
+  touch-action: none;
+  cursor: grab;
+  transition: opacity .25s ease, transform .25s ease, box-shadow .15s ease;
 }
-.show-player-fab svg { width: 21px; height: 21px; }
+.show-player-fab svg { width: 15px; height: 15px; }
 .show-player-fab.hidden { opacity: 0; transform: scale(.6); pointer-events: none; }
-.show-player-fab:active { transform: scale(.92); }
+.show-player-fab.dragging { cursor: grabbing; box-shadow: 0 8px 22px rgba(0,0,0,.45); transition: none; }
+.show-player-fab:active:not(.dragging) { transform: scale(.92); }
 
 /* -------- بوصلة اتجاه القبلة -------- */
 .qibla-card {

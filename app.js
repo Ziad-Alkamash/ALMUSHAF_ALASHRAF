@@ -1041,6 +1041,82 @@
     renderReciterChips('#reciter-choices');
   }
 
+  const SHOW_BAR_FAB_POS_KEY = 'almus-hraf:playerFabPos';
+
+  function initShowBarFabDrag(fab, onTap) {
+    const MARGIN = 6;
+
+    function clamp(val, min, max) { return Math.min(Math.max(val, min), max); }
+
+    function applyPosition(left, top) {
+      const maxLeft = window.innerWidth - fab.offsetWidth - MARGIN;
+      const maxTop = window.innerHeight - fab.offsetHeight - MARGIN;
+      const x = clamp(left, MARGIN, Math.max(MARGIN, maxLeft));
+      const y = clamp(top, MARGIN, Math.max(MARGIN, maxTop));
+      fab.style.left = x + 'px';
+      fab.style.top = y + 'px';
+      fab.style.bottom = 'auto';
+      fab.style.right = 'auto';
+      return { x, y };
+    }
+
+    // استعادة آخر موضع محفوظ للزرار العائم (إن وُجد) عند تحميل التطبيق
+    try {
+      const saved = JSON.parse(localStorage.getItem(SHOW_BAR_FAB_POS_KEY) || 'null');
+      if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+        applyPosition(saved.x, saved.y);
+      }
+    } catch (e) { /* تجاهل */ }
+
+    let startX = 0, startY = 0, originLeft = 0, originTop = 0, dragging = false, pointerId = null;
+
+    fab.addEventListener('pointerdown', (e) => {
+      const rect = fab.getBoundingClientRect();
+      originLeft = rect.left;
+      originTop = rect.top;
+      startX = e.clientX;
+      startY = e.clientY;
+      dragging = false;
+      pointerId = e.pointerId;
+      fab.setPointerCapture(pointerId);
+    });
+
+    fab.addEventListener('pointermove', (e) => {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!dragging && Math.hypot(dx, dy) > 6) {
+        dragging = true;
+        fab.classList.add('dragging');
+      }
+      if (dragging) applyPosition(originLeft + dx, originTop + dy);
+    });
+
+    function endDrag(e) {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      try { fab.releasePointerCapture(pointerId); } catch (err) { /* تجاهل */ }
+      const wasDragging = dragging;
+      fab.classList.remove('dragging');
+      dragging = false;
+      pointerId = null;
+      if (wasDragging) {
+        const rect = fab.getBoundingClientRect();
+        try { localStorage.setItem(SHOW_BAR_FAB_POS_KEY, JSON.stringify({ x: rect.left, y: rect.top })); } catch (err) { /* عند امتلاء الذاكرة */ }
+      } else {
+        onTap();
+      }
+    }
+
+    fab.addEventListener('pointerup', endDrag);
+    fab.addEventListener('pointercancel', endDrag);
+
+    // إبقاء الزرار داخل حدود الشاشة عند تدوير الجهاز أو تغيير حجم النافذة
+    window.addEventListener('resize', () => {
+      const rect = fab.getBoundingClientRect();
+      if (rect.width) applyPosition(rect.left, rect.top);
+    });
+  }
+
   function initSurahAudioPlayer() {
     const headerBtn = $('#btn-header-surah-audio');
     const bar = $('#surah-audio-bar');
@@ -1190,12 +1266,21 @@
           updatePlayPauseIcons(false);
         }
       });
+      state.surahAudioEl.addEventListener('error', () => {
+        if (state.playerMode === 'surah' && state.surahAudioSurah === surahNumber) {
+          playAyahContinuous(surahNumber, 1);
+        }
+      });
 
       state.surahAudioEl.play().then(() => {
         updatePlayPauseIcons(true);
       }).catch(() => {
-        showToast('تعذّر تشغيل الصوت، تحقّق من الاتصال بالإنترنت');
-        stopAudio();
+        // بعض القرّاء ليس لديهم ملف صوتي كامل للسورة على خادم الملفات المباشر
+        // (يعمل هذا مع الشيخ العفاسي فقط)، فنرجع تلقائيًا لتشغيل السورة آية
+        // بآية عبر نفس آلية "الاستماع المتواصل من آية معينة" التي تعمل مع كل القرّاء
+        if (state.playerMode === 'surah' && state.surahAudioSurah === surahNumber) {
+          playAyahContinuous(surahNumber, 1);
+        }
       });
     }
 
@@ -1339,7 +1424,7 @@
 
     // إخفاء الشريط مؤقتًا أثناء القراءة، وإظهاره من الزرار العائم فقط
     if (barHideBtn) barHideBtn.addEventListener('click', minimizeBar);
-    if (showBarFab) showBarFab.addEventListener('click', showBar);
+    if (showBarFab) initShowBarFabDrag(showBarFab, showBar);
 
     if (barSeek) {
       barSeek.addEventListener('input', () => {
