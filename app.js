@@ -1324,8 +1324,13 @@
     }
 
     /* -------- تظليل الآية التي يقرأها القارئ الآن في صفحة المصحف -------- */
+    // ملحوظة مهمة: التظليل هنا "سلبي" بالكامل — أي لا يغيّر الصفحة المعروضة أبدًا من
+    // تلقاء نفسه. لو الآية اللي بتتقرأ مش على الصفحة الحالية، ببساطة منسيبها من غير
+    // تظليل، ومنسيب المستخدم يقلّب بحرية تامة بالسحب في أي وقت (سواء الصوت شغال أو
+    // متوقف مؤقتًا). التظليل بيرجع يظهر تلقائيًا لوحده لما يوصل المستخدم بنفسه (بالسحب
+    // العادي) للصفحة اللي فيها الآية الحالية، لأن renderPageContent بتنادي
+    // reapplyAyahHighlight() في كل مرة تتحمّل فيها صفحة جديدة
     let lastHighlightedAyahEl = null;
-    let followPageInFlight = false;
     function clearAyahHighlight() {
       if (lastHighlightedAyahEl) {
         lastHighlightedAyahEl.classList.remove('ayah-playing');
@@ -1344,25 +1349,9 @@
         if (wrapRect && (rect.top < wrapRect.top || rect.bottom > wrapRect.bottom)) {
           target.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        return;
       }
-      // الآية مش على الصفحة المعروضة حاليًا. لو المستخدم فاتح تبويب "القرآن" فعلاً،
-      // نجيب رقم صفحتها وننقله لها تلقائيًا حتى تفضل الآية اللي بتتقرأ متحدّدة قدّامه
-      // (تتبّع تلقائي للقراءة)، بدل ما التظليل يفضل مش ظاهر إلا لو هو بيقلّب يدويًا
-      const quranView = $('#view-quran');
-      if (!followPageInFlight && quranView && quranView.classList.contains('active') && typeof QuranAPI !== 'undefined' && QuranAPI.getAyahPage) {
-        followPageInFlight = true;
-        QuranAPI.getAyahPage(surahNumber, ayahNumber)
-          .then((page) => {
-            followPageInFlight = false;
-            if (!page) return;
-            // تأكيد إن الآية دي لسه هي المشغّلة فعلاً (المستخدم ممكن يكون غيّر حاجة أثناء الجلب)
-            if (state.surahAudioSurah !== surahNumber || state.ayahPlayerAyahNum !== ayahNumber) return;
-            if (state.currentPageData && state.currentPageData.pageNumber === page) return;
-            loadPage(page);
-          })
-          .catch(() => { followPageInFlight = false; });
-      }
+      // لو الآية مش على الصفحة المعروضة حاليًا: نتجاهل بهدوء بدون أي تنقّل تلقائي،
+      // حتى لا يصطدم هذا بتقليب المستخدم اليدوي للصفحات بالسحب.
     }
     // يُستدعى بعد إعادة رسم الصفحة (مثلاً عند التنقل بين صفحات المصحف أثناء التشغيل)
     // حتى تظل الآية الحالية مظلّلة إن كانت موجودة على الصفحة المعروضة الجديدة
