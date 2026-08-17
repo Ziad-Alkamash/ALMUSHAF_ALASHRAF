@@ -50,6 +50,12 @@
     return stripTashkeel(String(nameAr).replace(/^(سُورَةُ|سورة)\s*/, '').trim());
   }
 
+  // عدد آيات سورة معينة من فهرس السور المُحمَّل (يُستخدم في محدد نطاق مشاركة الصورة)
+  function surahAyahCount(surahNumber) {
+    const s = (state.surahList || []).find((x) => x.number === surahNumber);
+    return s ? Number(s.ayahCount) || 0 : 0;
+  }
+
   let toastTimer = null;
   function showToast(msg) {
     const el = $('#toast');
@@ -754,8 +760,8 @@
     ctx.stroke();
   }
 
-  /* -------- توليد صورة أنيقة للآية بنفس روح تصميم صفحة المصحف، والنص يملأ الصورة -------- */
-  async function generateAyahImage(surahName, ayahNum, ayahText) {
+  /* -------- توليد صورة أنيقة لآية واحدة أو مجموعة آيات متتالية، بنفس روح تصميم صفحة المصحف -------- */
+  async function generateAyahImage(surahName, fromAyah, toAyah, ayahsList) {
     // تأكيد تحميل الخطوط المطلوبة قبل الرسم حتى لا تظهر بخط افتراضي بديل
     try {
       await Promise.all([
@@ -769,13 +775,17 @@
     const WIDTH = 1080;
     const cleanSurah = cleanSurahName(surahName);
     const maxTextWidth = WIDTH - 230;
+    const isRange = fromAyah !== toAyah;
+
+    // دمج الآيات في فقرة واحدة متصلة، وكل آية تنتهي بعلامة نهاية آية زخرفية (رقمها بالأرقام العربية)
+    const fullText = ayahsList.map((a) => `${a.text.trim()} ﴿${toArabicDigits(a.num)}﴾`).join(' ');
 
     const measureCanvas = document.createElement('canvas');
     const mctx = measureCanvas.getContext('2d');
 
     function wrapText(fontSize) {
       mctx.font = `${fontSize}px "Amiri Quran", "Traditional Arabic", serif`;
-      const words = ayahText.split(' ');
+      const words = fullText.split(' ');
       const lines = [];
       let line = '';
       words.forEach((w) => {
@@ -791,10 +801,10 @@
       return lines;
     }
 
-    // حجم خط تلقائي يتناسب مع طول الآية حتى يملأ النص مساحة الصورة بشكل جيد
-    let fontSize = ayahText.length > 260 ? 40 : ayahText.length > 170 ? 48 : ayahText.length > 100 ? 58 : ayahText.length > 50 ? 68 : 80;
+    // حجم خط تلقائي يتناسب مع طول النص حتى يملأ النص مساحة الصورة بشكل جيد
+    let fontSize = fullText.length > 500 ? 32 : fullText.length > 340 ? 36 : fullText.length > 260 ? 40 : fullText.length > 170 ? 48 : fullText.length > 100 ? 58 : fullText.length > 50 ? 68 : 80;
     let lines = wrapText(fontSize);
-    while (lines.length > 10 && fontSize > 30) {
+    while (lines.length > 22 && fontSize > 26) {
       fontSize -= 2;
       lines = wrapText(fontSize);
     }
@@ -838,7 +848,7 @@
     drawCornerEmblem(ctx, 70, HEIGHT - 70, GOLD);
     drawCornerEmblem(ctx, WIDTH - 70, HEIGHT - 70, GOLD);
 
-    // اسم السورة ورقم الآية أعلى الصورة
+    // اسم السورة ونطاق الآية/الآيات أعلى الصورة
     ctx.textAlign = 'center';
     ctx.fillStyle = EMERALD;
     ctx.font = '700 46px "Aref Ruqaa", serif';
@@ -846,11 +856,14 @@
 
     ctx.fillStyle = GOLD_DEEP;
     ctx.font = '700 26px "Tajawal", sans-serif';
-    ctx.fillText(`الآية ${toArabicDigits(ayahNum)}`, WIDTH / 2, 194);
+    ctx.fillText(
+      isRange ? `الآيات ${toArabicDigits(fromAyah)} — ${toArabicDigits(toAyah)}` : `الآية ${toArabicDigits(fromAyah)}`,
+      WIDTH / 2, 194
+    );
 
     drawOrnamentDivider(ctx, WIDTH / 2, 224, 260, GOLD);
 
-    // نص الآية بخط القرآن يملأ منتصف الصورة بالكامل
+    // نص الآيات بخط القرآن يملأ منتصف الصورة بالكامل
     ctx.fillStyle = INK;
     ctx.font = `${fontSize}px "Amiri Quran", "Traditional Arabic", serif`;
     ctx.textAlign = 'center';
@@ -873,20 +886,85 @@
     ctx.font = '700 26px "Aref Ruqaa", serif';
     ctx.fillText('المصحف الأشرف', WIDTH / 2, footTop + 128);
 
+    const rangeLabel = isRange ? `${fromAyah}-${toAyah}` : `${fromAyah}`;
     canvas.toBlob((blob) => {
       if (!blob) return showToast('تعذّر إنشاء الصورة، حاول مجددًا');
-      const file = new File([blob], `ayah-${ayahNum}.png`, { type: 'image/png' });
+      const file = new File([blob], `ayah-${rangeLabel}.png`, { type: 'image/png' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({
           files: [file],
           title: `سورة ${cleanSurah}`,
-          text: `${ayahText} [سورة ${cleanSurah}: ${ayahNum}]`
+          text: `${ayahsList.map((a) => a.text.trim()).join(' ')} [سورة ${cleanSurah}: ${rangeLabel}]`
         }).catch(() => {});
       } else {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `المصحف-الأشرف-آية-${ayahNum}.png`;
+        a.download = `المصحف-الأشرف-آية-${rangeLabel}.png`;
         a.click();
+      }
+    });
+  }
+
+  /* -------- محدد نطاق الآيات لمشاركتها كصورة واحدة (من آية كذا إلى آية كذا) -------- */
+  async function renderShareImageRangePicker(panelEl, surah, ayah, surahNameAr) {
+    panelEl.classList.add('open');
+    panelEl.innerHTML = `<p class="loading-text">جارٍ التحميل...</p>`;
+
+    if (!state.surahList || !state.surahList.length) {
+      try { await loadSurahIndex(); } catch (e) { /* سنعتمد على الآية الحالية فقط إن تعذر */ }
+    }
+    const maxAyah = surahAyahCount(surah) || ayah;
+    const cName = cleanSurahName(surahNameAr);
+
+    panelEl.innerHTML = `
+      <div class="share-range-picker">
+        <p class="panel-text muted">اختر نطاق الآيات من سورة ${escapeHTML(cName)} التي تريد مشاركتها في صورة واحدة (يمكن اختيار آية واحدة أو أكثر).</p>
+        <div class="share-range-row">
+          <label class="share-range-field">
+            <span>من الآية</span>
+            <input type="number" id="share-range-from" class="time-input" min="1" max="${maxAyah}" value="${ayah}">
+          </label>
+          <label class="share-range-field">
+            <span>إلى الآية</span>
+            <input type="number" id="share-range-to" class="time-input" min="1" max="${maxAyah}" value="${ayah}">
+          </label>
+        </div>
+        <button class="btn-primary" id="btn-generate-share-image">
+          <span class="opt-icon">🖼️</span>
+          <span>إنشاء الصورة ومشاركتها</span>
+        </button>
+      </div>`;
+
+    const fromInput = $('#share-range-from', panelEl);
+    const toInput = $('#share-range-to', panelEl);
+    const genBtn = $('#btn-generate-share-image', panelEl);
+
+    genBtn.addEventListener('click', async () => {
+      let from = Math.round(Number(fromInput.value)) || ayah;
+      let to = Math.round(Number(toInput.value)) || ayah;
+      from = Math.min(Math.max(from, 1), maxAyah);
+      to = Math.min(Math.max(to, 1), maxAyah);
+      if (from > to) { const t = from; from = to; to = t; }
+
+      genBtn.disabled = true;
+      genBtn.querySelector('span').textContent = 'جارٍ تجهيز الصورة...';
+      try {
+        let ayahsList;
+        if (from === to && from === ayah) {
+          ayahsList = [{ num: ayah, text: state.activeAyah.text }];
+        } else {
+          const fullSurah = await QuranAPI.getSurahAyahs(surah);
+          ayahsList = fullSurah
+            .filter((a) => a.numberInSurah >= from && a.numberInSurah <= to)
+            .map((a) => ({ num: a.numberInSurah, text: a.text }));
+        }
+        if (!ayahsList.length) throw new Error('no-ayahs');
+        await generateAyahImage(surahNameAr, from, to, ayahsList);
+      } catch (e) {
+        showToast('تعذّر تجهيز الصورة، تحقّق من الاتصال بالإنترنت');
+      } finally {
+        genBtn.disabled = false;
+        genBtn.querySelector('span').textContent = 'إنشاء الصورة ومشاركتها';
       }
     });
   }
@@ -923,8 +1001,8 @@
     }
 
     if (panel === 'share-img') {
-      showToast('جارٍ تجهيز صورة الآية...');
-      await generateAyahImage(state.activeAyah.surahNameAr, state.activeAyah.ayah, state.activeAyah.text);
+      $$('.option-btn').forEach((b) => b.classList.toggle('active', b === btnEl));
+      renderShareImageRangePicker(panelEl, surah, ayah, surahNameAr);
       return;
     }
 

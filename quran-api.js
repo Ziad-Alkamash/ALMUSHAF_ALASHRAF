@@ -162,6 +162,19 @@ const QuranAPI = (() => {
     return 1;
   }
 
+  // 3️⃣.٥ نص كل آيات سورة معينة كاملة (يُستخدم لمشاركة نطاق من الآيات كصورة واحدة)
+  async function getSurahAyahs(surahNumber) {
+    const data = await cachedFetchJSON(`${BASE}/surah/${surahNumber}/quran-uthmani`);
+    const rawAyahs = (data.data && data.data.ayahs) || [];
+    return rawAyahs.map((a) => {
+      let cleanText = a.text;
+      if (a.numberInSurah === 1 && surahNumber !== 1 && surahNumber !== 9) {
+        cleanText = cleanText.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, '');
+      }
+      return { numberInSurah: a.numberInSurah, text: cleanText };
+    });
+  }
+
   // 4️⃣ تفسير الميسر لآية محددة
   async function getTafsir(surah, ayah) {
     const data = await cachedFetchJSON(`${BASE}/ayah/${surah}:${ayah}/ar.muyassar`);
@@ -249,6 +262,7 @@ const QuranAPI = (() => {
     getPage, 
     getSurahList, 
     getSurahStartPage, 
+    getSurahAyahs,
     getTafsir, 
     getAyahAudio, 
     getWordMeanings,

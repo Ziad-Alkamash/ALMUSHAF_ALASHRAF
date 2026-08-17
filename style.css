@@ -1825,6 +1825,12 @@ body.theme-night .hadith-search-input { color: var(--gold-soft); }
 .btn-primary svg { width: 17px; height: 17px; }
 .btn-primary:active { transform: scale(.97); }
 
+/* محدد نطاق الآيات لمشاركتها كصورة واحدة */
+.share-range-picker { display: flex; flex-direction: column; gap: 12px; }
+.share-range-row { display: flex; gap: 14px; }
+.share-range-field { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+.share-range-field .time-input { width: 100%; text-align: center; font-size: 15px; padding: 9px 6px; }
+
 .hadith-section-title {
   font-family: var(--font-display);
   color: var(--gold-soft);
