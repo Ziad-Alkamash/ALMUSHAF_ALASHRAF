@@ -938,6 +938,19 @@
   <button id="notif-popup-close" class="notif-popup-close" aria-label="إغلاق">✕</button>
 </div>
 
+<!-- بانر تثبيت التطبيق (PWA) — يظهر تلقائيًا لمن يفتح رابط التطبيق بزر "تثبيت" مباشر،
+     بدل الاعتماد على قائمة المتصفح (٣ نقط). على أندرويد/كروم يعمل الزر التثبيت الحقيقي،
+     وعلى آيفون (بدون دعم متصفح للتثبيت المباشر) يعرض تعليمات "أضف للشاشة الرئيسية" -->
+<div id="pwa-install-banner" class="pwa-install-banner" role="dialog" aria-label="تثبيت التطبيق">
+  <img class="pwa-install-icon" src="icon-192.png" alt="">
+  <div class="pwa-install-text">
+    <strong>ثبّت المصحف الأشرف</strong>
+    <span id="pwa-install-desc">أضِفه لشاشتك الرئيسية ليعمل كتطبيق مستقل وبدون إنترنت</span>
+  </div>
+  <button id="pwa-install-btn" class="pwa-install-btn">تثبيت</button>
+  <button id="pwa-install-close" class="pwa-install-close" aria-label="إغلاق">✕</button>
+</div>
+
 <!-- السكريبتات -->
 <script src="azkar-data.js"></script>
 <script src="duas-data.js"></script>
@@ -952,6 +965,69 @@
         .catch(err => console.error('Service Worker Registration Failed:', err));
     });
   }
+</script>
+<script>
+(function () {
+  var banner = document.getElementById('pwa-install-banner');
+  var btn = document.getElementById('pwa-install-btn');
+  var closeBtn = document.getElementById('pwa-install-close');
+  var descEl = document.getElementById('pwa-install-desc');
+  if (!banner) return;
+
+  // لو التطبيق شغال بالفعل بصيغة مثبَّتة (standalone)، فلا داعي لعرض أي دعوة للتثبيت
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isStandalone) return;
+
+  var DISMISS_KEY = 'almus-hraf:installDismissedUntil';
+  function isDismissedForNow() {
+    var until = Number(localStorage.getItem(DISMISS_KEY) || 0);
+    return Date.now() < until;
+  }
+  function dismiss(days) {
+    banner.classList.remove('show');
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + (days || 3) * 86400000));
+  }
+  function showBanner() {
+    if (isDismissedForNow()) return;
+    setTimeout(function () { banner.classList.add('show'); }, 1200);
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', function () { dismiss(3); });
+
+  // أندرويد / كروم / إيدج: نمنع نافذة المتصفح الافتراضية (اللي محتاجة ٣ نقط) ونعرض
+  // بدلًا منها زرارنا الخاص "تثبيت"، اللي بيستدعي نفس نافذة التثبيت الحقيقية فورًا
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    showBanner();
+  });
+
+  if (btn) {
+    btn.addEventListener('click', function () {
+      if (!deferredPrompt) return;
+      banner.classList.remove('show');
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.finally(function () { deferredPrompt = null; });
+    });
+  }
+
+  window.addEventListener('appinstalled', function () {
+    banner.classList.remove('show');
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + 365 * 86400000));
+  });
+
+  // آيفون/آيباد سفاري: المتصفح مفيش فيه نافذة تثبيت مباشرة (beforeinstallprompt غير مدعومة)،
+  // فنعرض بدلها تعليمات واضحة لإضافة التطبيق من زر المشاركة
+  var ua = navigator.userAgent || '';
+  var isIOS = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+  var isIOSSafari = isIOS && /safari/i.test(ua) && !/crios|fxios|edgios|opios/i.test(ua);
+  if (isIOSSafari) {
+    if (descEl) descEl.textContent = 'اضغط زر المشاركة ⬆️ في أسفل الشاشة، ثم اختر "إضافة إلى الشاشة الرئيسية"';
+    if (btn) btn.classList.add('hidden');
+    showBanner();
+  }
+})();
 </script>
 </body>
 </html>

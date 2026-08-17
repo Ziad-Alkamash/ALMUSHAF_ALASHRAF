@@ -1861,6 +1861,81 @@ body.theme-night .tasbih-num { color: var(--gold-soft); }
 }
 
 /* =========================================================================
+   بانر تثبيت التطبيق (PWA Install Banner) — نفس أسلوب notif-popup،
+   يظهر أعلى الشاشة بزر "تثبيت" مباشر بدل قائمة المتصفح
+   ========================================================================= */
+.pwa-install-banner {
+  position: fixed;
+  top: env(safe-area-inset-top, 10px);
+  left: 10px;
+  right: 10px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(160deg, var(--paper-deep), var(--paper));
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  transform: translateY(calc(-100% - 20px));
+  opacity: 0;
+  transition: transform .32s cubic-bezier(.22,.61,.36,1), opacity .32s;
+  pointer-events: none;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.pwa-install-banner.show {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.pwa-install-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(201,162,39,.4);
+}
+.pwa-install-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.pwa-install-text strong {
+  font-size: 14.5px;
+  color: var(--mushaf-ink);
+}
+.pwa-install-text span {
+  font-size: 12px;
+  color: var(--gold-deep);
+  line-height: 1.4;
+}
+.pwa-install-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pwa-install-close {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  color: var(--gold-deep);
+  background: rgba(201,162,39,.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+
+/* =========================================================================
    الاستجابة للشاشات (Responsive)
    ========================================================================= */
 @media (min-width: 561px) {
