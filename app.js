@@ -1372,7 +1372,8 @@
         lastHighlightedAyahEl = null;
       }
     }
-    function highlightPlayingAyah(surahNumber, ayahNumber) {
+    function highlightPlayingAyah(surahNumber, ayahNumber, opts) {
+      const followPage = !opts || opts.followPage !== false;
       clearAyahHighlight();
       const target = $(`.ayah[data-surah="${surahNumber}"][data-ayah="${ayahNumber}"]`);
       if (target) {
@@ -1388,7 +1389,10 @@
       }
       // الآية مش على الصفحة المعروضة حاليًا. لو المستخدم فاتح تبويب "القرآن" فعلاً،
       // نجيب رقم صفحتها وننقله لها تلقائيًا حتى تفضل الآية اللي بتتقرأ متحدّدة قدّامه
-      // (تتبّع تلقائي للقراءة)، بدل ما التظليل يفضل مش ظاهر إلا لو هو بيقلّب يدويًا
+      // (تتبّع تلقائي للقراءة)، بدل ما التظليل يفضل مش ظاهر إلا لو هو بيقلّب يدويًا.
+      // followPage=false تُستخدم عند إعادة تطبيق التظليل بعد أي رسم صفحة (مثلاً بعد
+      // تقليب المستخدم يدويًا)، حتى لا يُلغي التطبيق تقليبه فورًا بالرجوع لصفحة الصوت.
+      if (!followPage) return;
       const quranView = $('#view-quran');
       if (!followPageInFlight && quranView && quranView.classList.contains('active') && typeof QuranAPI !== 'undefined' && QuranAPI.getAyahPage) {
         followPageInFlight = true;
@@ -1404,11 +1408,13 @@
           .catch(() => { followPageInFlight = false; });
       }
     }
-    // يُستدعى بعد إعادة رسم الصفحة (مثلاً عند التنقل بين صفحات المصحف أثناء التشغيل)
-    // حتى تظل الآية الحالية مظلّلة إن كانت موجودة على الصفحة المعروضة الجديدة
+    // يُستدعى بعد إعادة رسم الصفحة (مثلاً عند تقليب المستخدم يدويًا أثناء التشغيل)
+    // حتى تظل الآية الحالية مظلّلة إن كانت موجودة على الصفحة المعروضة الجديدة فقط.
+    // followPage: false عمدًا هنا — بدونها كان أي تقليب يدوي للمستخدم يُلغى فورًا
+    // ويرجعه التطبيق تلقائيًا لصفحة الصوت، وهو سبب "امتناع" تقليب الصفحات أثناء التشغيل.
     function reapplyAyahHighlight() {
       if (state.playerMode === 'ayah' && state.surahAudioSurah && state.ayahPlayerAyahNum) {
-        highlightPlayingAyah(state.surahAudioSurah, state.ayahPlayerAyahNum);
+        highlightPlayingAyah(state.surahAudioSurah, state.ayahPlayerAyahNum, { followPage: false });
       }
     }
 
