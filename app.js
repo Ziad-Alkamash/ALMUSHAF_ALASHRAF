@@ -3089,12 +3089,60 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* بانر "فيه تحديث جديد" — يعرض نسخة جديدة من التطبيق تفعّلت في الخلفية */
+  /* بدل الاعتماد على أن يقفل المستخدم التطبيق ويفتحه من جديد            */
+  /* ---------------------------------------------------------------- */
+  function initAppUpdateBanner(reg) {
+    if (!reg) return;
+    const banner = $('#update-banner');
+    if (!banner) return;
+
+    const btn = $('#update-banner-btn');
+    const closeBtn = $('#update-banner-close');
+
+    // نلتقط هل كانت هناك نسخة سابقة تتحكّم بالصفحة قبل التسجيل؛ لو لأ فهذا
+    // أول تثبيت للتطبيق وليس تحديثًا، فلا داعي لإظهار البانر
+    const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+    let handled = false;
+
+    function showBanner() {
+      if (handled) return;
+      handled = true;
+      banner.classList.add('show');
+    }
+
+    // تُطلَق هذه عندما تتفعّل نسخة الـ Service Worker الجديدة وتتولى التحكّم بالصفحة
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadControllerAtLoad) showBanner();
+    });
+
+    if (btn) {
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        window.location.reload();
+      });
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => banner.classList.remove('show'));
+    }
+
+    // فحص دوري لوجود تحديث + عند رجوع المستخدم لتبويب/تطبيق مفتوح من قبل،
+    // لأن المتصفح لا يفحص التحديثات تلقائيًا طوال الوقت في تطبيقات PWA المستقلة
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
+    setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+  }
+
+  /* ---------------------------------------------------------------- */
   /* التسجيل والتشغيل الرئيسي                                         */
   /* ---------------------------------------------------------------- */
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+        navigator.serviceWorker.register('sw.js')
+          .then((reg) => initAppUpdateBanner(reg))
+          .catch(() => {});
       });
     }
   }
